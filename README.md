@@ -2,7 +2,7 @@
 Adds notes in social menu and below nameplate.<br>
 UIExpansion Kit required<br>
 You can add notes to anyone, not just friends<br>
-<br>
+Notes are saved locally on your computer<br>
 #### Credit 
 * knah for UIExpansion Kit and NetworkManagerHooks class for join event
 
