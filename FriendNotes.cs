@@ -10,7 +10,7 @@ using System;
 using UnityEngine;
 using UIExpansionKit.Components;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "FriendNotes", "1.0", "Nora2")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "FriendNotes", "1.0", "Nola2")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
