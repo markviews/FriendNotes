@@ -98,7 +98,7 @@ namespace Friend_Notes {
                 BuiltinUiUtils.ShowInputPopup("Edit Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
                     setNote(userID, newNote);
                     updateNameplates();
-                    updateText();
+                    if (showNotesInMenu) updateText();
                 });
 
             }));
