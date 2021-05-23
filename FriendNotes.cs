@@ -114,7 +114,9 @@ namespace Friend_Notes {
             string note = getNote(userID);
 
             Transform textContainer = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Text Container");
+            if (textContainer == null) return;
             Transform subTextTransform = textContainer.Find("Note");
+            if (subTextTransform == null) return;
 
             if ((note == "" || !showNameplates) && subTextTransform != null) {
                 subTextTransform.gameObject.active = false;
