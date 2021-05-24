@@ -10,7 +10,7 @@ using System;
 using UnityEngine;
 using UIExpansionKit.Components;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "FriendNotes", "1.0", "Nola2")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "FriendNotes", "1.0.1", "Nola2")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
@@ -161,7 +161,7 @@ namespace Friend_Notes {
                     notes.Add(userID, note);
             }
 
-            File.WriteAllText("Mods/FriendNotes/notes.txt", new JavaScriptSerializer().Serialize(notes));
+            File.WriteAllText("UserData/FriendNotes.txt", new JavaScriptSerializer().Serialize(notes));
 
             foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0) {
                 if (player.prop_String_0 == userID) {
@@ -173,7 +173,19 @@ namespace Friend_Notes {
         }
 
         public static void loadNotes() {
-            notes = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("Mods/FriendNotes/notes.txt"));
+
+            //move data if it's still in old location (this code can probably be removed after a few updates as it only applies to version 1.0)
+            try {
+                notes = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("Mods/FriendNotes/notes.txt"));
+                setNote("", "");
+                Directory.Delete("Mods/FriendNotes", true);
+                MelonLogger.Log("Moving data to userData/FriendNotes.txt");
+            } catch (Exception e) {}
+
+            //load data
+            try {
+                notes = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("UserData/FriendNotes.txt"));
+            } catch (Exception e) {}
         }
 
     }
