@@ -112,6 +112,7 @@ namespace Friend_Notes {
         public static void updateNameplate(Player player) {
             string userID = player.field_Private_APIUser_0.id;
             string note = getNote(userID);
+            if (!showNameplates) note = "";
 
             Transform textContainer = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Text Container");
             if (textContainer == null) return;
@@ -162,6 +163,8 @@ namespace Friend_Notes {
             }
 
             File.WriteAllText("UserData/FriendNotes.txt", new JavaScriptSerializer().Serialize(notes));
+
+            if (!showNameplates) return;
 
             foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0) {
                 if (player.prop_String_0 == userID) {
