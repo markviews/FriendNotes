@@ -164,8 +164,6 @@ namespace Friend_Notes {
 
             File.WriteAllText("UserData/FriendNotes.txt", new JavaScriptSerializer().Serialize(notes));
 
-            if (!showNameplates) return;
-
             foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0) {
                 if (player.prop_String_0 == userID) {
                     updateNameplate(player);
