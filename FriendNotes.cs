@@ -13,7 +13,7 @@ using VRC.Core;
 using Harmony;
 using System.Reflection;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.3", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.4", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
@@ -27,7 +27,9 @@ namespace Friend_Notes {
         private static TMPro.TextMeshPro textbox;
         private static Color color;
 
-        public override void VRChat_OnUiManagerInit() {
+        public IEnumerator UiManagerInitializer() {
+            while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
+
             GameObject userInfo = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo");
             textbox = userInfo.AddComponent<TMPro.TextMeshPro>();
             textbox.sortingOrder = 1;
@@ -90,6 +92,7 @@ namespace Friend_Notes {
             MelonPreferences.CreateEntry("FriendNotes", "colorB", 87f);
 
             loadNotes();
+            MelonCoroutines.Start(UiManagerInitializer());
             MelonCoroutines.Start(Initialize());
             ExpansionKitApi.RegisterWaitConditionBeforeDecorating(createButton());
 
