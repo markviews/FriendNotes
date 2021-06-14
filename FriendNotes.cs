@@ -9,8 +9,11 @@ using VRC;
 using System;
 using UnityEngine;
 using UIExpansionKit.Components;
+using VRC.Core;
+using Harmony;
+using System.Reflection;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "FriendNotes", "1.0.2", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.3", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
@@ -19,7 +22,8 @@ namespace Friend_Notes {
     public class FriendNotes : MelonMod {
 
         private static Dictionary<string, string> notes = new Dictionary<string, string>();
-        private static bool showNameplates, showNotesInMenu;
+        private static Dictionary<string, string> addDate = new Dictionary<string, string>();
+        private static bool showNameplates, showNotesInMenu, logDate;
         private static TMPro.TextMeshPro textbox;
         private static Color color;
 
@@ -44,6 +48,11 @@ namespace Friend_Notes {
                     textbox.text = "";
             };
 
+            Harmony.Patch(typeof(APIUser).GetMethod("LocalAddFriend"), null, new HarmonyMethod(typeof(FriendNotes).GetMethod(nameof(OnFriend), BindingFlags.NonPublic | BindingFlags.Static)));
+        }
+
+        private static void OnFriend(APIUser user) {
+            setDate(user.id);
         }
 
         public IEnumerator delayRun(Action action, float wait) {
@@ -53,7 +62,7 @@ namespace Friend_Notes {
 
         public void updateText() {
             string userID = QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id;
-            string note = getNote(userID);
+            string note = getNote(userID, true);
 
             textbox.text = note;
             textbox.fontSize = 250;
@@ -63,6 +72,7 @@ namespace Friend_Notes {
         public override void OnPreferencesSaved() {
             showNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesOnNameplates");
             showNotesInMenu = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesInMenu");
+            logDate = MelonPreferences.GetEntryValue<bool>("FriendNotes", "logDate");
             float colorR = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorR");
             float colorG = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorG");
             float colorB = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorB");
@@ -74,6 +84,7 @@ namespace Friend_Notes {
             MelonPreferences.CreateCategory("FriendNotes", "Friend Notes");
             MelonPreferences.CreateEntry("FriendNotes", "showNotesOnNameplates", true, "Show notes on nameplates?");
             MelonPreferences.CreateEntry("FriendNotes", "showNotesInMenu", true, "Show notes in menu?");
+            MelonPreferences.CreateEntry("FriendNotes", "logDate", true, "Log date you add friends?");
             MelonPreferences.CreateEntry("FriendNotes", "colorR", 230f);
             MelonPreferences.CreateEntry("FriendNotes", "colorG", 230f);
             MelonPreferences.CreateEntry("FriendNotes", "colorB", 87f);
@@ -84,6 +95,7 @@ namespace Friend_Notes {
 
             showNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesOnNameplates");
             showNotesInMenu = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesInMenu");
+            logDate = MelonPreferences.GetEntryValue<bool>("FriendNotes", "logDate");
             float colorR = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorR");
             float colorG = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorG");
             float colorB = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorB");
@@ -105,7 +117,7 @@ namespace Friend_Notes {
             ExpansionKitApi.RegisterSimpleMenuButton(ExpandedMenu.UserDetailsMenu, "Edit Note", new Action(() => {
 
                 string userID = QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id;
-                string noteBeforeEdit = getNote(userID);
+                string noteBeforeEdit = getNote(userID, true);
 
                 BuiltinUiUtils.ShowInputPopup("Edit Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
                     setNote(userID, newNote);
@@ -123,7 +135,7 @@ namespace Friend_Notes {
 
         public static void updateNameplate(Player player) {
             string userID = player.prop_String_0;
-            string note = getNote(userID);
+            string note = getNote(userID, false);
             if (!showNameplates) note = "";
 
             Transform textContainer = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Text Container");
@@ -170,10 +182,24 @@ namespace Friend_Notes {
             }
         }
 
-        public static string getNote(string userID) {
+        public static string getNote(string userID, bool showDate) {
+            string note = "";
             if (notes.ContainsKey(userID))
-                return notes[userID];
-            return "";
+                note = notes[userID];
+            if (showDate && logDate)
+                if (addDate.ContainsKey(userID)) {
+                    if (note == "") note = addDate[userID];
+                    else note += " " + addDate[userID];
+                }
+            return note;
+        }
+
+        public static void setDate(string userID) {
+            if (!logDate) return;
+            if (!addDate.ContainsKey(userID)) {
+                addDate.Add(userID, DateTime.Now.ToString("dd/MM/yyyy - hh:mm tt"));
+                File.WriteAllText("UserData/FriendNotes_addDates.txt", new JavaScriptSerializer().Serialize(addDate));
+            }
         }
 
         public static void setNote(string userID, string note) {
@@ -199,19 +225,14 @@ namespace Friend_Notes {
         }
 
         public static void loadNotes() {
-
-            //move data if it's still in old location (this code can probably be removed after a few updates as it only applies to version 1.0)
-            try {
-                notes = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("Mods/FriendNotes/notes.txt"));
-                setNote("", "");
-                Directory.Delete("Mods/FriendNotes", true);
-                MelonLogger.Log("Moving data to userData/FriendNotes.txt");
-            } catch (Exception e) {}
-
             //load data
             try {
                 notes = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("UserData/FriendNotes.txt"));
             } catch (Exception e) {}
+
+            try {
+                addDate = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("UserData/FriendNotes_addDates.txt"));
+            } catch (Exception e) { }
         }
 
     }
