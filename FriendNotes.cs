@@ -10,7 +10,7 @@ using System;
 using UnityEngine;
 using UIExpansionKit.Components;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "FriendNotes", "1.0.1", "Nola2")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "FriendNotes", "1.0.2", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
@@ -20,7 +20,8 @@ namespace Friend_Notes {
 
         private static Dictionary<string, string> notes = new Dictionary<string, string>();
         private static bool showNameplates, showNotesInMenu;
-        TMPro.TextMeshPro textbox;
+        private static TMPro.TextMeshPro textbox;
+        private static Color color;
 
         public override void VRChat_OnUiManagerInit() {
             GameObject userInfo = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo");
@@ -62,6 +63,10 @@ namespace Friend_Notes {
         public override void OnPreferencesSaved() {
             showNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesOnNameplates");
             showNotesInMenu = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesInMenu");
+            float colorR = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorR");
+            float colorG = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorG");
+            float colorB = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorB");
+            color = new Color(colorR / 255f, colorG / 255f, colorB / 255f);
             updateNameplates();
         }
 
@@ -69,6 +74,9 @@ namespace Friend_Notes {
             MelonPreferences.CreateCategory("FriendNotes", "Friend Notes");
             MelonPreferences.CreateEntry("FriendNotes", "showNotesOnNameplates", true, "Show notes on nameplates?");
             MelonPreferences.CreateEntry("FriendNotes", "showNotesInMenu", true, "Show notes in menu?");
+            MelonPreferences.CreateEntry("FriendNotes", "colorR", 230f);
+            MelonPreferences.CreateEntry("FriendNotes", "colorG", 230f);
+            MelonPreferences.CreateEntry("FriendNotes", "colorB", 87f);
 
             loadNotes();
             MelonCoroutines.Start(Initialize());
@@ -76,6 +84,10 @@ namespace Friend_Notes {
 
             showNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesOnNameplates");
             showNotesInMenu = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesInMenu");
+            float colorR = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorR");
+            float colorG = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorG");
+            float colorB = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorB");
+            color = new Color(colorR/255f, colorG/255f, colorB/255f);
         }
 
         private IEnumerator Initialize() {
@@ -110,7 +122,7 @@ namespace Friend_Notes {
         }
 
         public static void updateNameplate(Player player) {
-            string userID = player.field_Private_APIUser_0.id;
+            string userID = player.prop_String_0;
             string note = getNote(userID);
             if (!showNameplates) note = "";
 
@@ -125,15 +137,28 @@ namespace Friend_Notes {
 
             GameObject subText;
             if (subTextTransform == null) {
-                subText = GameObject.Instantiate(textContainer.Find("Sub-Text").gameObject, textContainer.transform, true);
-                VerticalLayoutGroup layerGroup = textContainer.GetComponent<VerticalLayoutGroup>();
-                layerGroup.rectChildren.Add(subText.GetComponent<RectTransform>());
+                GameObject originalSubText = textContainer.Find("Sub Text").gameObject;
+                subText = GameObject.Instantiate(originalSubText, textContainer);
                 subText.name = "Note";
+
+                RectTransform bg = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Background").GetComponent<RectTransform>();
+
+                originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () => {
+                    bg.anchorMin = new Vector2(0, -0.3f);
+                    subText.SetActive(true);
+                };
+
+                originalSubText.AddComponent<EnableDisableListener>().OnDisabled += () => {
+                    bg.anchorMin = new Vector2(0, 0);
+                    subText.SetActive(false);
+                };
+
             } else {
                 subText = subTextTransform.gameObject;
             }
-            subText.GetComponent<TMPro.TextMeshProUGUI>().text = note;
-            subText.active = true;
+            subText.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = note;
+            subText.transform.Find("Icon").GetComponent<Image>().color = color;
+            subText.active = false;
         }
 
         public static void updateNameplates() {
