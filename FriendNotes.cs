@@ -23,9 +23,9 @@ namespace Friend_Notes {
 
         private static Dictionary<string, string> notes = new Dictionary<string, string>();
         private static Dictionary<string, string> addDate = new Dictionary<string, string>();
-        private static bool showNameplates, showNotesInMenu, logDate;
+        private static bool showNotesOnNameplates, showNotesInMenu, logDate, showDateOnNameplates;
         private static TMPro.TextMeshPro textbox;
-        private static Color color;
+        private static Color noteColor, dateColor;
 
         public IEnumerator UiManagerInitializer() {
             while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
@@ -64,7 +64,7 @@ namespace Friend_Notes {
 
         public void updateText() {
             string userID = QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id;
-            string note = getNote(userID, true);
+            string note = getNote(userID) + " " + getDate(userID);
 
             textbox.text = note;
             textbox.fontSize = 250;
@@ -72,13 +72,20 @@ namespace Friend_Notes {
         }
 
         public override void OnPreferencesSaved() {
-            showNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesOnNameplates");
+            showNotesOnNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesOnNameplates");
             showNotesInMenu = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesInMenu");
             logDate = MelonPreferences.GetEntryValue<bool>("FriendNotes", "logDate");
-            float colorR = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorR");
-            float colorG = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorG");
-            float colorB = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorB");
-            color = new Color(colorR / 255f, colorG / 255f, colorB / 255f);
+            showDateOnNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showDateOnNameplates");
+
+            string noteColorStr = MelonPreferences.GetEntryValue<string>("FriendNotes", "noteColor");
+            Color color;
+            if (ColorUtility.TryParseHtmlString("#" + noteColorStr, out color)) noteColor = color;
+            else MelonLogger.Warning("Invalid HEX color code: #" + noteColorStr);
+
+            string dateColorStr = MelonPreferences.GetEntryValue<string>("FriendNotes", "dateColor");
+            Color color2;
+            if (ColorUtility.TryParseHtmlString("#" + dateColorStr, out color2)) dateColor = color2;
+            else MelonLogger.Warning("Invalid HEX color code:# " + dateColorStr);
             updateNameplates();
         }
 
@@ -87,22 +94,16 @@ namespace Friend_Notes {
             MelonPreferences.CreateEntry("FriendNotes", "showNotesOnNameplates", true, "Show notes on nameplates?");
             MelonPreferences.CreateEntry("FriendNotes", "showNotesInMenu", true, "Show notes in menu?");
             MelonPreferences.CreateEntry("FriendNotes", "logDate", true, "Log date you add friends?");
-            MelonPreferences.CreateEntry("FriendNotes", "colorR", 230f);
-            MelonPreferences.CreateEntry("FriendNotes", "colorG", 230f);
-            MelonPreferences.CreateEntry("FriendNotes", "colorB", 87f);
+            MelonPreferences.CreateEntry("FriendNotes", "showDateOnNameplates", true, "Show data on nameplates?");
+            MelonPreferences.CreateEntry("FriendNotes", "noteColor", "e6e657");
+            MelonPreferences.CreateEntry("FriendNotes", "dateColor", "858585");
 
             loadNotes();
             MelonCoroutines.Start(UiManagerInitializer());
             MelonCoroutines.Start(Initialize());
             ExpansionKitApi.RegisterWaitConditionBeforeDecorating(createButton());
 
-            showNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesOnNameplates");
-            showNotesInMenu = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesInMenu");
-            logDate = MelonPreferences.GetEntryValue<bool>("FriendNotes", "logDate");
-            float colorR = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorR");
-            float colorG = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorG");
-            float colorB = MelonPreferences.GetEntryValue<float>("FriendNotes", "colorB");
-            color = new Color(colorR/255f, colorG/255f, colorB/255f);
+            OnPreferencesSaved();
         }
 
         private IEnumerator Initialize() {
@@ -120,7 +121,7 @@ namespace Friend_Notes {
             ExpansionKitApi.RegisterSimpleMenuButton(ExpandedMenu.UserDetailsMenu, "Edit Note", new Action(() => {
 
                 string userID = QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id;
-                string noteBeforeEdit = getNote(userID, true);
+                string noteBeforeEdit = getNote(userID);
 
                 BuiltinUiUtils.ShowInputPopup("Edit Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
                     setNote(userID, newNote);
@@ -138,42 +139,71 @@ namespace Friend_Notes {
 
         public static void updateNameplate(Player player) {
             string userID = player.prop_String_0;
-            string note = getNote(userID, false);
-            if (!showNameplates) note = "";
+
+            //ignore self
+            if (userID == PlayerManager.prop_PlayerManager_0.field_Private_Player_0.field_Private_APIUser_0.id) return;
+
+            string note = getNote(userID);
+            string date = getDate(userID);
 
             Transform textContainer = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Text Container");
             if (textContainer == null) return;
-            Transform subTextTransform = textContainer.Find("Note");
+            Transform noteTransform = textContainer.Find("Note");
+            Transform dateTransform = textContainer.Find("Date");
 
-            if ((note == "" || !showNameplates) && subTextTransform != null) {
-                subTextTransform.gameObject.active = false;
+            if ((note == "" || !showNotesOnNameplates) && (date == "" || !showDateOnNameplates))
                 return;
-            }
 
-            GameObject subText;
-            if (subTextTransform == null) {
+            GameObject noteObj;
+            GameObject dateObj;
+            if (noteTransform == null) {
+                noteObj = GameObject.Instantiate(textContainer.Find("Sub Text").gameObject, textContainer);
+                noteObj.name = "Note";
+
+                dateObj = GameObject.Instantiate(textContainer.Find("Sub Text").gameObject, textContainer);
+                dateObj.name = "Date";
+
                 GameObject originalSubText = textContainer.Find("Sub Text").gameObject;
-                subText = GameObject.Instantiate(originalSubText, textContainer);
-                subText.name = "Note";
-
                 RectTransform bg = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Background").GetComponent<RectTransform>();
+                RectTransform glow = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Glow").GetComponent<RectTransform>();
 
                 originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () => {
-                    bg.anchorMin = new Vector2(0, -0.3f);
-                    subText.SetActive(true);
+                    float height = 0;
+                    if (showNotesOnNameplates && getNote(userID) != "") {
+                        noteObj.SetActive(true);
+                        height -= 0.3f;
+                    }
+                    if (showDateOnNameplates && getDate(userID) != "") {
+                        dateObj.SetActive(true);
+                        height -= 0.3f;
+                    }
+                    bg.anchorMin = new Vector2(0, height);
+                    glow.anchorMin = new Vector2(0, height);
                 };
 
                 originalSubText.AddComponent<EnableDisableListener>().OnDisabled += () => {
                     bg.anchorMin = new Vector2(0, 0);
-                    subText.SetActive(false);
+                    glow.anchorMin = new Vector2(0, 0);
+                    noteObj.SetActive(false);
+                    dateObj.SetActive(false);
                 };
 
             } else {
-                subText = subTextTransform.gameObject;
+                noteObj = noteTransform.gameObject;
+                dateObj = dateTransform.gameObject;
             }
-            subText.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = note;
-            subText.transform.Find("Icon").GetComponent<Image>().color = color;
-            subText.active = false;
+
+            noteObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = note;
+            noteObj.transform.Find("Text").gameObject.SetActive(true);
+            noteObj.transform.Find("Icon").GetComponent<Image>().color = noteColor;
+            noteObj.transform.Find("Icon").gameObject.SetActive(true);
+            noteObj.SetActive(false);
+
+            dateObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = date;
+            dateObj.transform.Find("Text").gameObject.SetActive(true);
+            dateObj.transform.Find("Icon").GetComponent<Image>().color = dateColor;
+            dateObj.transform.Find("Icon").gameObject.SetActive(true);
+            dateObj.SetActive(false);
         }
 
         public static void updateNameplates() {
@@ -185,17 +215,18 @@ namespace Friend_Notes {
             }
         }
 
-        public static string getNote(string userID, bool showDate) {
-            string note = "";
+        public static string getNote(string userID) {
             if (notes.ContainsKey(userID))
-                note = notes[userID];
-            if (showDate && logDate)
-                if (addDate.ContainsKey(userID)) {
-                    if (note == "") note = addDate[userID];
-                    else note += " " + addDate[userID];
-                }
-            return note;
+                return notes[userID];
+            return "";
         }
+
+        public static string getDate(string userID) {
+            if (addDate.ContainsKey(userID))
+                return addDate[userID];
+            return "";
+        }
+
 
         public static void setDate(string userID) {
             if (!logDate) return;
@@ -224,7 +255,6 @@ namespace Friend_Notes {
                     break;
                 }
             }
-
         }
 
         public static void loadNotes() {
