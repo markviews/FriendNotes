@@ -13,7 +13,7 @@ using VRC.Core;
 using Harmony;
 using System.Reflection;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.4", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.5", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
@@ -94,7 +94,7 @@ namespace Friend_Notes {
             MelonPreferences.CreateEntry("FriendNotes", "showNotesOnNameplates", true, "Show notes on nameplates?");
             MelonPreferences.CreateEntry("FriendNotes", "showNotesInMenu", true, "Show notes in menu?");
             MelonPreferences.CreateEntry("FriendNotes", "logDate", true, "Log date you add friends?");
-            MelonPreferences.CreateEntry("FriendNotes", "showDateOnNameplates", true, "Show data on nameplates?");
+            MelonPreferences.CreateEntry("FriendNotes", "showDateOnNameplates", true, "Show date on nameplates?");
             MelonPreferences.CreateEntry("FriendNotes", "noteColor", "e6e657");
             MelonPreferences.CreateEntry("FriendNotes", "dateColor", "858585");
 
