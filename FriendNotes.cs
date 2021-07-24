@@ -12,8 +12,9 @@ using UIExpansionKit.Components;
 using VRC.Core;
 using Harmony;
 using System.Reflection;
+using System.Globalization;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.5", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.6", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
@@ -26,6 +27,7 @@ namespace Friend_Notes {
         private static bool showNotesOnNameplates, showNotesInMenu, logDate, showDateOnNameplates;
         private static TMPro.TextMeshPro textbox;
         private static Color noteColor, dateColor;
+        private static string dateFormat;
 
         public IEnumerator UiManagerInitializer() {
             while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
@@ -76,6 +78,7 @@ namespace Friend_Notes {
             showNotesInMenu = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesInMenu");
             logDate = MelonPreferences.GetEntryValue<bool>("FriendNotes", "logDate");
             showDateOnNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showDateOnNameplates");
+            dateFormat = MelonPreferences.GetEntryValue<string>("FriendNotes", "dateFormat");
 
             string noteColorStr = MelonPreferences.GetEntryValue<string>("FriendNotes", "noteColor");
             Color color;
@@ -97,6 +100,7 @@ namespace Friend_Notes {
             MelonPreferences.CreateEntry("FriendNotes", "showDateOnNameplates", true, "Show date on nameplates?");
             MelonPreferences.CreateEntry("FriendNotes", "noteColor", "e6e657");
             MelonPreferences.CreateEntry("FriendNotes", "dateColor", "858585");
+            MelonPreferences.CreateEntry("FriendNotes", "dateFormat", "M/d/yy - hh:mm tt");
 
             loadNotes();
             MelonCoroutines.Start(UiManagerInitializer());
@@ -141,7 +145,7 @@ namespace Friend_Notes {
             string userID = player.prop_String_0;
 
             //ignore self
-            if (userID == PlayerManager.prop_PlayerManager_0.field_Private_Player_0.field_Private_APIUser_0.id) return;
+            if (userID == PlayerManager.prop_PlayerManager_0.field_Private_Player_0.prop_String_0) return;
 
             string note = getNote(userID);
             string date = getDate(userID);
@@ -222,11 +226,14 @@ namespace Friend_Notes {
         }
 
         public static string getDate(string userID) {
-            if (addDate.ContainsKey(userID))
-                return addDate[userID];
+            if (addDate.ContainsKey(userID)) {
+                DateTime date;
+                if (DateTime.TryParseExact(addDate[userID], "dd/MM/yyyy - hh:mm tt", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+                    return date.ToString(dateFormat);
+                else MelonLogger.LogWarning("failed to parse date: " + addDate[userID]);
+            }
             return "";
         }
-
 
         public static void setDate(string userID) {
             if (!logDate) return;
@@ -261,11 +268,12 @@ namespace Friend_Notes {
             //load data
             try {
                 notes = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("UserData/FriendNotes.txt"));
-            } catch (Exception e) {}
+            } catch (Exception) {}
 
             try {
                 addDate = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("UserData/FriendNotes_addDates.txt"));
-            } catch (Exception e) { }
+            } catch (Exception) { }
+
         }
 
     }
