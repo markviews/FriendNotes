@@ -14,7 +14,7 @@ using Harmony;
 using System.Reflection;
 using System.Globalization;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.6", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.7", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
