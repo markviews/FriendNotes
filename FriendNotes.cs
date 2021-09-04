@@ -14,7 +14,7 @@ using Harmony;
 using System.Reflection;
 using System.Globalization;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.7", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.8", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit")]
 
@@ -25,19 +25,21 @@ namespace Friend_Notes {
         private static Dictionary<string, string> notes = new Dictionary<string, string>();
         private static Dictionary<string, string> addDate = new Dictionary<string, string>();
         private static bool showNotesOnNameplates, showNotesInMenu, logDate, showDateOnNameplates;
-        private static TMPro.TextMeshPro textbox;
         private static Color noteColor, dateColor;
         private static string dateFormat;
+        private static Text textbox;
 
         public IEnumerator UiManagerInitializer() {
             while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
 
+            Transform parent = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel").transform;
+            GameObject textObj = GameObject.Instantiate(parent.Find("NameText").gameObject, parent);
+            textObj.transform.localPosition = new Vector3(-159, 13, -10);
+            textbox = textObj.GetComponent<Text>();
+            textbox.fontSize = 30;
+            textbox.text = "";
+
             GameObject userInfo = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo");
-            textbox = userInfo.AddComponent<TMPro.TextMeshPro>();
-            textbox.sortingOrder = 1;
-            textbox.margin = new Vector4(25, 100, 0, 0);
-            textbox.fontSize = 250;
-            textbox.m_fontSize = 250;
 
             userInfo.AddComponent<EnableDisableListener>().OnEnabled += () => {
                 if (!showNotesInMenu) return;
@@ -67,10 +69,7 @@ namespace Friend_Notes {
         public void updateText() {
             string userID = QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id;
             string note = getNote(userID) + " " + getDate(userID);
-
             textbox.text = note;
-            textbox.fontSize = 250;
-            textbox.m_fontSize = 250;
         }
 
         public override void OnPreferencesSaved() {
@@ -170,6 +169,7 @@ namespace Friend_Notes {
                 GameObject originalSubText = textContainer.Find("Sub Text").gameObject;
                 RectTransform bg = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Background").GetComponent<RectTransform>();
                 RectTransform glow = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Glow").GetComponent<RectTransform>();
+                RectTransform pulse = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Pulse").GetComponent<RectTransform>();
 
                 originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () => {
                     float height = 0;
@@ -183,11 +183,13 @@ namespace Friend_Notes {
                     }
                     bg.anchorMin = new Vector2(0, height);
                     glow.anchorMin = new Vector2(0, height);
+                    pulse.anchorMin = new Vector2(0, height);
                 };
 
                 originalSubText.AddComponent<EnableDisableListener>().OnDisabled += () => {
                     bg.anchorMin = new Vector2(0, 0);
                     glow.anchorMin = new Vector2(0, 0);
+                    pulse.anchorMin = new Vector2(0, 0);
                     noteObj.SetActive(false);
                     dateObj.SetActive(false);
                 };
