@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,10 +7,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace Friend_Notes
 {
@@ -23,6 +20,7 @@ namespace Friend_Notes
         OnOff,
         YesNo,
     }
+
     public static partial class Extensions
     {
         #region Reflection
@@ -151,6 +149,7 @@ namespace Friend_Notes
         {
             return Path.GetFileNameWithoutExtension(file.Name);
         }
+
         /*public static string Extension(this FileInfo file) {
             return Path.GetExtension(file.Name);
         }*/
@@ -363,7 +362,6 @@ namespace Friend_Notes
         #endregion Task
 
         #region bool
-
 
         public static string ToString(this bool value, BooleanStringMode mode = BooleanStringMode.TrueFalse, bool capitalize = true)
         {

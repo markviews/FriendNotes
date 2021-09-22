@@ -7,15 +7,17 @@ using System.Web.Script.Serialization;
 
 namespace Friend_Notes
 {
-    class Importer
+    internal class Importer
     {
         public static FileInfo oldNotesFile = new FileInfo("UserData/FriendNotes.txt");
         public static FileInfo oldDatesFile = new FileInfo("UserData/FriendNotes_addDates.txt");
+
         public static void Import()
         {
             ImportOldNotes(oldNotesFile);
             ImportOldDates(oldDatesFile);
         }
+
         public static void ImportOldNotes(FileInfo file)
         {
             if (!file.Exists) return;
@@ -32,6 +34,7 @@ namespace Friend_Notes
             MelonLogger.Warning($"Imported {notes.Count} notes from {file.FullName.Quote()}");
             file.Backup(); file.Delete();
         }
+
         public static void ImportOldDates(FileInfo file)
         {
             if (!file.Exists) return;

@@ -1,28 +1,24 @@
-﻿using MelonLoader;
-using UIExpansionKit.API;
+﻿using Harmony;
+using MelonLoader;
+using System;
 using System.Collections;
-using System.Web.Script.Serialization;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using UIExpansionKit.API;
+using UIExpansionKit.Components;
+using UnityEngine;
 using UnityEngine.UI;
 using VRC;
-using System;
-using UnityEngine;
-using UIExpansionKit.Components;
 using VRC.Core;
-using Harmony;
-using System.Reflection;
-using System.Globalization;
-using System.Linq;
 using VRChatUtilityKit.Utilities;
-using VRChatUtilityKit.Ui;
 
 [assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.1.0", "MarkViews, Bluscream")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit", "VRChatUtilityKit")]
 
-namespace Friend_Notes {
-
+namespace Friend_Notes
+{
     public class FriendNotes : MelonMod
     {
         public static class ModInfo
@@ -44,7 +40,6 @@ namespace Friend_Notes {
 
         public static Dictionary<string, UserNote> notes;
         public static Text textbox;
-
 
         public override void OnApplicationStart()
         {
@@ -89,7 +84,8 @@ namespace Friend_Notes {
             updateNameplates();
         }
 
-        public IEnumerator UiManagerInitializer() {
+        public IEnumerator UiManagerInitializer()
+        {
             while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
 
             Transform parent = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel").transform;
@@ -101,17 +97,19 @@ namespace Friend_Notes {
 
             GameObject userInfo = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo");
 
-            userInfo.AddComponent<EnableDisableListener>().OnEnabled += () => {
+            userInfo.AddComponent<EnableDisableListener>().OnEnabled += () =>
+            {
                 if (!showNotesInMenu) return;
 
-                MelonCoroutines.Start(delayRun(() => {
+                MelonCoroutines.Start(delayRun(() =>
+                {
                     updateText();
                 }, 0.5f));
-
             };
 
-            userInfo.AddComponent<EnableDisableListener>().OnDisabled += () => {
-                    textbox.text = "";
+            userInfo.AddComponent<EnableDisableListener>().OnDisabled += () =>
+            {
+                textbox.text = "";
             };
 
             Harmony.Patch(typeof(APIUser).GetMethod("LocalAddFriend"), null, new HarmonyMethod(typeof(FriendNotes).GetMethod(nameof(OnFriend), BindingFlags.NonPublic | BindingFlags.Static)));
@@ -125,12 +123,14 @@ namespace Friend_Notes {
             saveNotes();
         }
 
-        public IEnumerator delayRun(Action action, float wait) {
+        public IEnumerator delayRun(Action action, float wait)
+        {
             yield return new WaitForSeconds(wait);
             action.Invoke();
         }
 
-        public void updateText() {
+        public void updateText()
+        {
             if (notes.ContainsKey(VRCUtils.ActiveUserInUserInfoMenu.id))
                 textbox.text = notes[VRCUtils.ActiveUserInUserInfoMenu.id].FullText;
         }
@@ -141,26 +141,28 @@ namespace Friend_Notes {
   at (wrapper dynamic-method) UnhollowerRuntimeLib.DelegateSupport.(il2cpp delegate trampoline) System.Void(intptr,UnhollowerBaseLib.Runtime.Il2CppMethodInfo*)
         */
 
-        private IEnumerator createButton() {
+        private IEnumerator createButton()
+        {
             while (QuickMenu.prop_QuickMenu_0 == null) yield return null;
 
-            #pragma warning disable CS0618
-            ExpansionKitApi.RegisterSimpleMenuButton(ExpandedMenu.UserDetailsMenu, "Edit Note", new Action(() => {
-
+#pragma warning disable CS0618
+            ExpansionKitApi.RegisterSimpleMenuButton(ExpandedMenu.UserDetailsMenu, "Edit Note", new Action(() =>
+            {
                 var user = VRCUtils.ActiveUserInUserInfoMenu;
                 string userID = user.id;
                 var noteBeforeEdit = notes.ContainsKey(userID) ? notes[userID].Note : "";
-                BuiltinUiUtils.ShowInputPopup(noteBeforeEdit == "" ? "Edit Note" : "Add Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
+                BuiltinUiUtils.ShowInputPopup(noteBeforeEdit == "" ? "Edit Note" : "Add Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) =>
+                {
                     notes.AddOrUpdate(user);
                     setNote(userID, newNote);
                     updateNameplates();
                     if (showNotesInMenu) updateText();
                 });
-
             }));
         }
 
-        public void OnPlayerJoined(Player player) {
+        public void OnPlayerJoined(Player player)
+        {
             if (player is null) return;
             updateNameplate(player);
         }
@@ -170,8 +172,6 @@ namespace Friend_Notes {
             string userID = player.prop_String_0;
 
             if (userID == PlayerManager.prop_PlayerManager_0.field_Private_Player_0.prop_String_0) return; //ignore self
-
-
 
             Transform textContainer = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Text Container");
             if (textContainer == null) return;
@@ -184,7 +184,8 @@ namespace Friend_Notes {
             }
 
             GameObject noteObj, dateObj;
-            if (noteTransform == null) {
+            if (noteTransform == null)
+            {
                 noteObj = GameObject.Instantiate(textContainer.Find("Sub Text").gameObject, textContainer);
                 noteObj.name = "Note";
 
@@ -195,7 +196,8 @@ namespace Friend_Notes {
                 RectTransform bg = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Background").GetComponent<RectTransform>();
                 RectTransform glow = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Glow").GetComponent<RectTransform>();
                 RectTransform pulse = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Pulse").GetComponent<RectTransform>();
-                originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () => {
+                originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () =>
+                {
                     float height = 0;
                     if (notes.ContainsKey(userID))
                     {
@@ -215,15 +217,17 @@ namespace Friend_Notes {
                     pulse.anchorMin = new Vector2(0, height);
                 };
 
-                originalSubText.AddComponent<EnableDisableListener>().OnDisabled += () => {
+                originalSubText.AddComponent<EnableDisableListener>().OnDisabled += () =>
+                {
                     bg.anchorMin = new Vector2(0, 0);
                     glow.anchorMin = new Vector2(0, 0);
                     pulse.anchorMin = new Vector2(0, 0);
                     noteObj.SetActive(false);
                     dateObj.SetActive(false);
                 };
-
-            } else {
+            }
+            else
+            {
                 noteObj = noteTransform.gameObject;
                 dateObj = dateTransform.gameObject;
             }
@@ -241,23 +245,29 @@ namespace Friend_Notes {
             dateObj.SetActive(false);
         }
 
-        public static void updateNameplates() {
-            foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0) {
+        public static void updateNameplates()
+        {
+            foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0)
+            {
                 if (notes.ContainsKey(player.prop_String_0)) updateNameplate(player);
             }
         }
 
-        public static void setDate(string userID) {
+        public static void setDate(string userID)
+        {
         }
 
-        public static void setNote(string userID, string newNote) {
+        public static void setNote(string userID, string newNote)
+        {
             if (notes.ContainsKey(userID)) notes[userID].Note = newNote;
             else notes[userID] = new UserNote() { Note = newNote };
 
             saveNotes();
 
-            foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0) {
-                if (player.prop_String_0 == userID) {
+            foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0)
+            {
+                if (player.prop_String_0 == userID)
+                {
                     updateNameplate(player);
                     break;
                 }
@@ -266,20 +276,23 @@ namespace Friend_Notes {
 
         public static void saveNotes() => notes.ToFile(notesFile);
 
-        public static Dictionary<string, UserNote> loadNotes() {
-            if (notesFile.Exists) {
-                try {
+        public static Dictionary<string, UserNote> loadNotes()
+        {
+            if (notesFile.Exists)
+            {
+                try
+                {
                     notes = UserNotes.FromFile(notesFile);
                     return notes;
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     MelonLogger.Error($"Failed to load notes from {notesFile.FullName.Quote()}:\n\t{ex.Message}");
                     File.Move(notesFile.FullName, notesFile.FullName + ".corrupt");
-                } 
+                }
             }
             notes = new Dictionary<string, UserNote>();
             return notes;
         }
-
     }
-
 }
