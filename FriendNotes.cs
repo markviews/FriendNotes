@@ -15,6 +15,7 @@ using System.Reflection;
 using System.Globalization;
 using System.Linq;
 using VRChatUtilityKit.Utilities;
+using VRChatUtilityKit.Ui;
 
 [assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.1.0", "MarkViews, Bluscream")]
 [assembly: MelonGame("VRChat", "VRChat")]
@@ -31,8 +32,6 @@ namespace Friend_Notes {
         }
 
         public static FileInfo notesFile = new FileInfo("UserData/FriendNotes.json");
-        public static FileInfo oldNotesFile = new FileInfo("UserData/FriendNotes.txt");
-        public static FileInfo oldDatesFile = new FileInfo("UserData/FriendNotes_addDates.txt");
 
         public static MelonPreferences_Category cat;
         public static bool showNotesOnNameplates;        // = cat.GetEntry<bool>("showNotesOnNameplates").Value;
@@ -43,7 +42,7 @@ namespace Friend_Notes {
         public static Color dateColor;                             // = cat.GetEntry<Color>("dateColor").Value;
         public static string dateFormat;                         // = cat.GetEntry<string>("dateFormat").Value;
 
-        public static List<UserNote> notes;
+        public static Dictionary<string, UserNote> notes;
         public static Text textbox;
 
 
@@ -60,7 +59,9 @@ namespace Friend_Notes {
 
             notes = loadNotes();
 
-            VRChatUtilityKit.Utilities.NetworkEvents.OnPlayerJoined += OnPlayerJoined;
+            Importer.Import();
+
+            NetworkEvents.OnPlayerJoined += OnPlayerJoined;
 
             MelonCoroutines.Start(UiManagerInitializer());
             ExpansionKitApi.RegisterWaitConditionBeforeDecorating(createButton());
@@ -116,8 +117,12 @@ namespace Friend_Notes {
             Harmony.Patch(typeof(APIUser).GetMethod("LocalAddFriend"), null, new HarmonyMethod(typeof(FriendNotes).GetMethod(nameof(OnFriend), BindingFlags.NonPublic | BindingFlags.Static)));
         }
 
-        private static void OnFriend(APIUser user) {
-            setDate(user.id);
+        private static void OnFriend(APIUser user)
+        {
+            if (!logDate) return;
+            notes.AddOrUpdate(user);
+            notes[user.id].DateAdded = DateTime.Now;
+            saveNotes();
         }
 
         public IEnumerator delayRun(Action action, float wait) {
@@ -126,8 +131,8 @@ namespace Friend_Notes {
         }
 
         public void updateText() {
-            var note = notes.ByUserId(QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id);
-            if (note != null) textbox.text = note.Note + " " + note.DateAddedText;
+            if (notes.ContainsKey(VRCUtils.ActiveUserInUserInfoMenu.id))
+                textbox.text = notes[VRCUtils.ActiveUserInUserInfoMenu.id].FullText;
         }
 
         /*
@@ -144,10 +149,10 @@ namespace Friend_Notes {
 
                 var user = VRCUtils.ActiveUserInUserInfoMenu;
                 string userID = user.id;
-                var noteBeforeEdit = notes.ByUserId(userID)?.Note ?? "";
-                BuiltinUiUtils.ShowInputPopup("Edit Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
-                    setNote(userID, newNote);
+                var noteBeforeEdit = notes.ContainsKey(userID) ? notes[userID].Note : "";
+                BuiltinUiUtils.ShowInputPopup(noteBeforeEdit == "" ? "Edit Note" : "Add Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
                     notes.AddOrUpdate(user);
+                    setNote(userID, newNote);
                     updateNameplates();
                     if (showNotesInMenu) updateText();
                 });
@@ -162,13 +167,10 @@ namespace Friend_Notes {
 
         public static void updateNameplate(Player player)
         {
-            MelonLogger.Msg("test1");
             string userID = player.prop_String_0;
 
             if (userID == PlayerManager.prop_PlayerManager_0.field_Private_Player_0.prop_String_0) return; //ignore self
 
-            var note = notes.ByUserId(userID);
-            MelonLogger.Msg("test2");
 
 
             Transform textContainer = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Text Container");
@@ -176,12 +178,10 @@ namespace Friend_Notes {
             Transform noteTransform = textContainer.Find("Note");
             Transform dateTransform = textContainer.Find("Date");
 
-            if (note != null)
+            if (notes.ContainsKey(userID))
             {
-                note.Update(player);
-                if ((note.HasNote || !showNotesOnNameplates) && (note.HasDate || !showDateOnNameplates)) return;
+                if ((notes[userID].HasNote || !showNotesOnNameplates) && (notes[userID].HasDate || !showDateOnNameplates)) return;
             }
-            MelonLogger.Msg("test3");
 
             GameObject noteObj, dateObj;
             if (noteTransform == null) {
@@ -196,16 +196,15 @@ namespace Friend_Notes {
                 RectTransform glow = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Glow").GetComponent<RectTransform>();
                 RectTransform pulse = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Pulse").GetComponent<RectTransform>();
                 originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () => {
-                    MelonLogger.Msg("test4");
                     float height = 0;
-                    if (note != null)
+                    if (notes.ContainsKey(userID))
                     {
-                        if (showNotesOnNameplates && note.HasNote)
+                        if (showNotesOnNameplates && notes[userID].HasNote)
                         {
                             noteObj.SetActive(true);
                             height -= 0.3f;
                         }
-                        if (showDateOnNameplates && note.HasDate)
+                        if (showDateOnNameplates && notes[userID].HasDate)
                         {
                             dateObj.SetActive(true);
                             height -= 0.3f;
@@ -228,55 +227,32 @@ namespace Friend_Notes {
                 noteObj = noteTransform.gameObject;
                 dateObj = dateTransform.gameObject;
             }
-            MelonLogger.Msg("test5");
 
-            noteObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = note?.Note ?? "";
+            noteObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = notes.ContainsKey(userID) && notes[userID].HasNote ? notes[userID].Note : "";
             noteObj.transform.Find("Text").gameObject.SetActive(true);
             noteObj.transform.Find("Icon").GetComponent<Image>().color = noteColor;
             noteObj.transform.Find("Icon").gameObject.SetActive(true);
             noteObj.SetActive(false);
 
-            dateObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = note?.DateAddedText ?? "";
+            dateObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = notes.ContainsKey(userID) ? notes[userID].DateAddedText : "";
             dateObj.transform.Find("Text").gameObject.SetActive(true);
             dateObj.transform.Find("Icon").GetComponent<Image>().color = dateColor;
             dateObj.transform.Find("Icon").gameObject.SetActive(true);
             dateObj.SetActive(false);
-            MelonLogger.Msg("test6");
         }
 
         public static void updateNameplates() {
             foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0) {
-                UserNote note = notes.Where(n => n.UserId == player.prop_String_0).FirstOrDefault();
-                if (note != null) updateNameplate(player);
+                if (notes.ContainsKey(player.prop_String_0)) updateNameplate(player);
             }
         }
 
         public static void setDate(string userID) {
-            if (!logDate) return;
-            var note = notes.Where(n => n.UserId == userID).FirstOrDefault();
-            if (note is null)
-            {
-                note = new UserNote() { UserId = userID };
-                notes.Add(note);
-            }
-            note.DateAdded = DateTime.Now;
-            saveNotes();
         }
 
         public static void setNote(string userID, string newNote) {
-            var note = notes.Where(n => n.UserId == userID).FirstOrDefault();
-            if (newNote == "") {
-                if (note != null)
-                    notes.Remove(note);
-            } else {
-                if (note != null)
-                    note.Note = newNote;
-                else
-                {
-                    note = new UserNote() { UserId = userID, Note = newNote };
-                    notes.Add(note);
-                }
-            }
+            if (notes.ContainsKey(userID)) notes[userID].Note = newNote;
+            else notes[userID] = new UserNote() { Note = newNote };
 
             saveNotes();
 
@@ -290,7 +266,7 @@ namespace Friend_Notes {
 
         public static void saveNotes() => notes.ToFile(notesFile);
 
-        public static List<UserNote> loadNotes() {
+        public static Dictionary<string, UserNote> loadNotes() {
             if (notesFile.Exists) {
                 try {
                     notes = UserNotes.FromFile(notesFile);
@@ -300,7 +276,7 @@ namespace Friend_Notes {
                     File.Move(notesFile.FullName, notesFile.FullName + ".corrupt");
                 } 
             }
-            notes = new List<UserNote>();
+            notes = new Dictionary<string, UserNote>();
             return notes;
         }
 

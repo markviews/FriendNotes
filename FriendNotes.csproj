@@ -84,7 +84,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Extensions.cs" />
     <Compile Include="FriendNotes.cs" />
+    <Compile Include="Importer.cs" />
     <Compile Include="NetworkManagerHooks.cs" />
     <Compile Include="UserNote.cs" />
   </ItemGroup>

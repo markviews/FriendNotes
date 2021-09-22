@@ -14,23 +14,31 @@ namespace Friend_Notes
     using System.Globalization;
     using System.IO;
     using System.Linq;
+    using System.Text;
+    using MelonLoader;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
 
     public static class UserNotes
     {
-        public static List<UserNote> FromJson(string json) => JsonConvert.DeserializeObject<List<UserNote>>(json, Friend_Notes.Converter.Settings);
-        public static List<UserNote> FromFile(FileInfo file) => JsonConvert.DeserializeObject<List<UserNote>>(file.ReadAllText(), Friend_Notes.Converter.Settings);
+        // public static Dictionary<string, UserNote> FromJson(string json) => JsonConvert.DeserializeObject<Dictionary<string, UserNote>>(json, Friend_Notes.Converter.Settings);
+        public static Dictionary<string, UserNote> FromFile(FileInfo file) => JsonConvert.DeserializeObject<Dictionary<string, UserNote>>(file.ReadAllText(), Friend_Notes.Converter.Settings);
+        public static Dictionary<string, UserNote> FromJson(string json) => JsonConvert.DeserializeObject<Dictionary<string, UserNote>>(json, Friend_Notes.Converter.Settings);
     }
 
     public partial class UserNote
     {
 
-        [JsonProperty("UserId", NullValueHandling = NullValueHandling.Ignore)]
-        public string UserId { get; set; }
+        [JsonIgnore]
+        public string DisplayName { get { return DisplayNames.Last()?.Name; } }
 
         [JsonIgnore]
-        public string DisplayName { get { return DisplayNames.Count > 0 ? DisplayNames.Last().Name : UserId; } }
+        public string FullText { get {
+                StringBuilder sb = new StringBuilder();
+                if (HasNote) sb.AppendLine(Note);
+                if (HasDate) sb.AppendLine(DateAddedText);
+                return sb.ToString();
+            } }
 
         [JsonIgnore]
         public bool HasNote { get { return !string.IsNullOrWhiteSpace(Note); } }
@@ -40,7 +48,7 @@ namespace Friend_Notes
         [JsonIgnore]
         public bool HasDate { get { return DateAdded != null; } }
         [JsonIgnore]
-        public string DateAddedText { get { return HasDate ? DateAdded?.ToString(FriendNotes.dateFormat) : string.Empty; } }
+        public string DateAddedText { get { return HasDate ? "Added: " + DateAdded?.ToString(FriendNotes.dateFormat) : string.Empty; } }
         [JsonProperty("DateAdded", NullValueHandling = NullValueHandling.Ignore)]
         public DateTimeOffset? DateAdded { get; set; }
 
@@ -55,10 +63,13 @@ namespace Friend_Notes
         public UserNote Update(VRC.Core.APIUser user) => Update(user.displayName);
         public UserNote Update(string displayname = null)
         {
-            if (DisplayNames is null) DisplayNames = new List<DisplayName>();
-            var names = DisplayNames.Where(f => f.Name == displayname);
-            if (names.Count() < 1) DisplayNames.Add(new DisplayName(displayname, DateTime.Now));
-            else names.Last().Date = DateTime.Now;
+            if (displayname != null)
+            {
+                if (DisplayNames is null) DisplayNames = new List<DisplayName>();
+                var names = DisplayNames.Where(f => f.Name == displayname);
+                if (names.Count() < 1) DisplayNames.Add(new DisplayName(displayname, DateTime.Now));
+                else names.Last().Date = DateTime.Now;
+            }
             return this;
         }
     }
@@ -83,32 +94,31 @@ namespace Friend_Notes
         }
     }
 
-    public static class Extensions
+    public static partial class Extensions
     {
-        public static UserNote ByUserId(this IEnumerable<UserNote> list, string uuid) => list.Where(f => f.UserId == uuid).FirstOrDefault();
+        /*public static UserNote ByUserId(this IEnumerable<UserNote> list, string uuid) => list.Where(f => f.UserId == uuid).FirstOrDefault();
         public static bool Contains(this IEnumerable<UserNote> list, string uuid) => list.Where(f => f.UserId == uuid).Count() > 0;
-        public static void Remove(this List<UserNote> list, string uuid) => list.RemoveAll(f => f.UserId == uuid);
+        public static void Remove(this Dictionary<string, UserNote> list, string uuid) => list.RemoveAll(f => f.UserId == uuid);*/
 
-        public static UserNote AddPlayer(this List<UserNote> list, VRC.Player player) => list.AddPlayer(player.field_Private_APIUser_0);
-        public static UserNote AddPlayer(this List<UserNote> list, VRC.Core.APIUser user) => list.AddPlayer(user.id, user.displayName);
-        public static UserNote AddPlayer(this List<UserNote> list, string uuid, string displayName) {
-            var player = new UserNote() { UserId = uuid, DisplayNames = new List<DisplayName>() { new DisplayName(displayName, DateTime.Now) } };
-            list.Add(player);
+        public static UserNote AddPlayer(this Dictionary<string, UserNote> list, VRC.Player player) => list.AddPlayer(player.field_Private_APIUser_0);
+        public static UserNote AddPlayer(this Dictionary<string, UserNote> list, VRC.Core.APIUser user) => list.AddPlayer(user.id, user.displayName);
+        public static UserNote AddPlayer(this Dictionary<string, UserNote> list, string userid, string displayName = null)
+        {
+            var player = new UserNote();
+            if (displayName != null) player.DisplayNames = new List<DisplayName>() { new DisplayName(displayName, DateTime.Now) };
+            list[userid] = player;
             return player;
         }
-        public static UserNote AddOrUpdate(this List<UserNote> list, VRC.Player player) => list.AddOrUpdate(player.field_Private_APIUser_0);
-        public static UserNote AddOrUpdate(this List<UserNote> list, VRC.Core.APIUser user) => list.AddOrUpdate(user.id, user.displayName);
-        public static UserNote AddOrUpdate(this List<UserNote> list, string userid, string displayname) {
-            var note = list.ByUserId(userid);
-            if (note != null) return note.Update(displayname);
+        public static UserNote AddOrUpdate(this Dictionary<string, UserNote> list, VRC.Player player) => list.AddOrUpdate(player.field_Private_APIUser_0);
+        public static UserNote AddOrUpdate(this Dictionary<string, UserNote> list, VRC.Core.APIUser user) => list.AddOrUpdate(user.id, user.displayName);
+        public static UserNote AddOrUpdate(this Dictionary<string, UserNote> list, string userid, string displayname = null)
+        {
+            if (list.ContainsKey(userid)) return list[userid].Update(displayname);
             return list.AddPlayer(userid, displayname);
         }
 
-        public static string ToJson(this List<UserNote> list) => JsonConvert.SerializeObject(list, Friend_Notes.Converter.Settings);
-        public static void ToFile(this List<UserNote> list, FileInfo file) => file.WriteAllText(list.ToJson());
-        public static void WriteAllText(this FileInfo file, string text) => File.WriteAllText(file.FullName, text);
-        public static string ReadAllText(this FileInfo file) => File.ReadAllText(file.FullName);
-        public static string Quote(this string input) => "\"" + input + "\"";
+        public static string ToJson(this Dictionary<string, UserNote> list) => JsonConvert.SerializeObject(list, Friend_Notes.Converter.Settings);
+        public static void ToFile(this Dictionary<string, UserNote> list, FileInfo file) => file.WriteAllText(list.ToJson());
     }
 
     internal static class Converter
