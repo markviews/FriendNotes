@@ -13,21 +13,80 @@ using VRC.Core;
 using Harmony;
 using System.Reflection;
 using System.Globalization;
+using System.Linq;
+using VRChatUtilityKit.Utilities;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.0.8", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.1.0", "MarkViews, Bluscream")]
 [assembly: MelonGame("VRChat", "VRChat")]
-[assembly: MelonOptionalDependencies("UIExpansionKit")]
+[assembly: MelonOptionalDependencies("UIExpansionKit", "VRChatUtilityKit")]
 
 namespace Friend_Notes {
 
-    public class FriendNotes : MelonMod {
+    public class FriendNotes : MelonMod
+    {
+        public static class ModInfo
+        {
+            public static string Name = typeof(FriendNotes).Name;
+            public static string FullName = "Friend Notes"; // typeof(FriendNotes).Assembly.GetCustomAttributes(typeof(MelonInfoAttribute), false)[1] as string;
+        }
 
-        private static Dictionary<string, string> notes = new Dictionary<string, string>();
-        private static Dictionary<string, string> addDate = new Dictionary<string, string>();
-        private static bool showNotesOnNameplates, showNotesInMenu, logDate, showDateOnNameplates;
-        private static Color noteColor, dateColor;
-        private static string dateFormat;
-        private static Text textbox;
+        public static FileInfo notesFile = new FileInfo("UserData/FriendNotes.json");
+        public static FileInfo oldNotesFile = new FileInfo("UserData/FriendNotes.txt");
+        public static FileInfo oldDatesFile = new FileInfo("UserData/FriendNotes_addDates.txt");
+
+        public static MelonPreferences_Category cat;
+        public static bool showNotesOnNameplates;        // = cat.GetEntry<bool>("showNotesOnNameplates").Value;
+        public static bool showNotesInMenu;                  // = cat.GetEntry<bool>("showNotesInMenu").Value;
+        public static bool logDate;                                  // = cat.GetEntry<bool>("logDate").Value;
+        public static bool showDateOnNameplates;         // = cat.GetEntry<bool>("showDateOnNameplates").Value;
+        public static Color noteColor;                             // = cat.GetEntry<Color>("noteColor").Value;
+        public static Color dateColor;                             // = cat.GetEntry<Color>("dateColor").Value;
+        public static string dateFormat;                         // = cat.GetEntry<string>("dateFormat").Value;
+
+        public static List<UserNote> notes;
+        public static Text textbox;
+
+
+        public override void OnApplicationStart()
+        {
+            cat = MelonPreferences.CreateCategory(ModInfo.Name, ModInfo.FullName);
+            cat.CreateEntry("showNotesOnNameplates", true, "Show notes on nameplates?");
+            cat.CreateEntry("showNotesInMenu", true, "Show notes in menu?");
+            cat.CreateEntry("logDate", true, "Log date you add friends?");
+            cat.CreateEntry("showDateOnNameplates", true, "Show date on nameplates?");
+            cat.CreateEntry("noteColor", "e6e657");
+            cat.CreateEntry("dateColor", "858585");
+            cat.CreateEntry("dateFormat", "M/d/yy - hh:mm tt");
+
+            notes = loadNotes();
+
+            VRChatUtilityKit.Utilities.NetworkEvents.OnPlayerJoined += OnPlayerJoined;
+
+            MelonCoroutines.Start(UiManagerInitializer());
+            ExpansionKitApi.RegisterWaitConditionBeforeDecorating(createButton());
+
+            OnPreferencesSaved();
+        }
+
+        public override void OnPreferencesSaved()
+        {
+            showNotesOnNameplates = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "showNotesOnNameplates");
+            showNotesInMenu = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "showNotesInMenu");
+            logDate = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "logDate");
+            showDateOnNameplates = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "showDateOnNameplates");
+            dateFormat = MelonPreferences.GetEntryValue<string>(cat.Identifier, "dateFormat");
+
+            string noteColorStr = MelonPreferences.GetEntryValue<string>(cat.Identifier, "noteColor");
+            Color color;
+            if (ColorUtility.TryParseHtmlString("#" + noteColorStr, out color)) noteColor = color;
+            else MelonLogger.Warning("Invalid HEX color code: #" + noteColorStr);
+
+            string dateColorStr = MelonPreferences.GetEntryValue<string>(cat.Identifier, "dateColor");
+            Color color2;
+            if (ColorUtility.TryParseHtmlString("#" + dateColorStr, out color2)) dateColor = color2;
+            else MelonLogger.Warning("Invalid HEX color code:# " + dateColorStr);
+            updateNameplates();
+        }
 
         public IEnumerator UiManagerInitializer() {
             while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
@@ -67,55 +126,15 @@ namespace Friend_Notes {
         }
 
         public void updateText() {
-            string userID = QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id;
-            string note = getNote(userID) + " " + getDate(userID);
-            textbox.text = note;
+            var note = notes.ByUserId(QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id);
+            if (note != null) textbox.text = note.Note + " " + note.DateAddedText;
         }
 
-        public override void OnPreferencesSaved() {
-            showNotesOnNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesOnNameplates");
-            showNotesInMenu = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showNotesInMenu");
-            logDate = MelonPreferences.GetEntryValue<bool>("FriendNotes", "logDate");
-            showDateOnNameplates = MelonPreferences.GetEntryValue<bool>("FriendNotes", "showDateOnNameplates");
-            dateFormat = MelonPreferences.GetEntryValue<string>("FriendNotes", "dateFormat");
-
-            string noteColorStr = MelonPreferences.GetEntryValue<string>("FriendNotes", "noteColor");
-            Color color;
-            if (ColorUtility.TryParseHtmlString("#" + noteColorStr, out color)) noteColor = color;
-            else MelonLogger.Warning("Invalid HEX color code: #" + noteColorStr);
-
-            string dateColorStr = MelonPreferences.GetEntryValue<string>("FriendNotes", "dateColor");
-            Color color2;
-            if (ColorUtility.TryParseHtmlString("#" + dateColorStr, out color2)) dateColor = color2;
-            else MelonLogger.Warning("Invalid HEX color code:# " + dateColorStr);
-            updateNameplates();
-        }
-
-        public override void OnApplicationStart() {
-            MelonPreferences.CreateCategory("FriendNotes", "Friend Notes");
-            MelonPreferences.CreateEntry("FriendNotes", "showNotesOnNameplates", true, "Show notes on nameplates?");
-            MelonPreferences.CreateEntry("FriendNotes", "showNotesInMenu", true, "Show notes in menu?");
-            MelonPreferences.CreateEntry("FriendNotes", "logDate", true, "Log date you add friends?");
-            MelonPreferences.CreateEntry("FriendNotes", "showDateOnNameplates", true, "Show date on nameplates?");
-            MelonPreferences.CreateEntry("FriendNotes", "noteColor", "e6e657");
-            MelonPreferences.CreateEntry("FriendNotes", "dateColor", "858585");
-            MelonPreferences.CreateEntry("FriendNotes", "dateFormat", "M/d/yy - hh:mm tt");
-
-            loadNotes();
-            MelonCoroutines.Start(UiManagerInitializer());
-            MelonCoroutines.Start(Initialize());
-            ExpansionKitApi.RegisterWaitConditionBeforeDecorating(createButton());
-
-            OnPreferencesSaved();
-        }
-
-        private IEnumerator Initialize() {
-            while (ReferenceEquals(NetworkManager.field_Internal_Static_NetworkManager_0, null))
-                yield return null;
-
-            NetworkManagerHooks.Initialize();
-            NetworkManagerHooks.OnJoin += OnPlayerJoined;
-        }
+        /*
+[16:25:42.817] [ERROR] Exception in IL2CPP-to-Managed trampoline, not passing it to il2cpp: System.NullReferenceException: Object reference not set to an instance of an object
+  at Friend_Notes.FriendNotes.<createButton>b__20_0 () [0x00038] in <ee6d0629f7084af5925ba212c51aae71>:0
+  at (wrapper dynamic-method) UnhollowerRuntimeLib.DelegateSupport.(il2cpp delegate trampoline) System.Void(intptr,UnhollowerBaseLib.Runtime.Il2CppMethodInfo*)
+        */
 
         private IEnumerator createButton() {
             while (QuickMenu.prop_QuickMenu_0 == null) yield return null;
@@ -123,11 +142,12 @@ namespace Friend_Notes {
             #pragma warning disable CS0618
             ExpansionKitApi.RegisterSimpleMenuButton(ExpandedMenu.UserDetailsMenu, "Edit Note", new Action(() => {
 
-                string userID = QuickMenu.prop_QuickMenu_0.field_Public_MenuController_0.activeUser.id;
-                string noteBeforeEdit = getNote(userID);
-
+                var user = VRCUtils.ActiveUserInUserInfoMenu;
+                string userID = user.id;
+                var noteBeforeEdit = notes.ByUserId(userID)?.Note ?? "";
                 BuiltinUiUtils.ShowInputPopup("Edit Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
                     setNote(userID, newNote);
+                    notes.AddOrUpdate(user);
                     updateNameplates();
                     if (showNotesInMenu) updateText();
                 });
@@ -136,29 +156,34 @@ namespace Friend_Notes {
         }
 
         public void OnPlayerJoined(Player player) {
-            if (player != null)
-                updateNameplate(player);
+            if (player is null) return;
+            updateNameplate(player);
         }
 
-        public static void updateNameplate(Player player) {
+        public static void updateNameplate(Player player)
+        {
+            MelonLogger.Msg("test1");
             string userID = player.prop_String_0;
 
-            //ignore self
-            if (userID == PlayerManager.prop_PlayerManager_0.field_Private_Player_0.prop_String_0) return;
+            if (userID == PlayerManager.prop_PlayerManager_0.field_Private_Player_0.prop_String_0) return; //ignore self
 
-            string note = getNote(userID);
-            string date = getDate(userID);
+            var note = notes.ByUserId(userID);
+            MelonLogger.Msg("test2");
+
 
             Transform textContainer = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Text Container");
             if (textContainer == null) return;
             Transform noteTransform = textContainer.Find("Note");
             Transform dateTransform = textContainer.Find("Date");
 
-            if ((note == "" || !showNotesOnNameplates) && (date == "" || !showDateOnNameplates))
-                return;
+            if (note != null)
+            {
+                note.Update(player);
+                if ((note.HasNote || !showNotesOnNameplates) && (note.HasDate || !showDateOnNameplates)) return;
+            }
+            MelonLogger.Msg("test3");
 
-            GameObject noteObj;
-            GameObject dateObj;
+            GameObject noteObj, dateObj;
             if (noteTransform == null) {
                 noteObj = GameObject.Instantiate(textContainer.Find("Sub Text").gameObject, textContainer);
                 noteObj.name = "Note";
@@ -170,16 +195,21 @@ namespace Friend_Notes {
                 RectTransform bg = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Background").GetComponent<RectTransform>();
                 RectTransform glow = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Glow").GetComponent<RectTransform>();
                 RectTransform pulse = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Pulse").GetComponent<RectTransform>();
-
                 originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () => {
+                    MelonLogger.Msg("test4");
                     float height = 0;
-                    if (showNotesOnNameplates && getNote(userID) != "") {
-                        noteObj.SetActive(true);
-                        height -= 0.3f;
-                    }
-                    if (showDateOnNameplates && getDate(userID) != "") {
-                        dateObj.SetActive(true);
-                        height -= 0.3f;
+                    if (note != null)
+                    {
+                        if (showNotesOnNameplates && note.HasNote)
+                        {
+                            noteObj.SetActive(true);
+                            height -= 0.3f;
+                        }
+                        if (showDateOnNameplates && note.HasDate)
+                        {
+                            dateObj.SetActive(true);
+                            height -= 0.3f;
+                        }
                     }
                     bg.anchorMin = new Vector2(0, height);
                     glow.anchorMin = new Vector2(0, height);
@@ -198,65 +228,57 @@ namespace Friend_Notes {
                 noteObj = noteTransform.gameObject;
                 dateObj = dateTransform.gameObject;
             }
+            MelonLogger.Msg("test5");
 
-            noteObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = note;
+            noteObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = note?.Note ?? "";
             noteObj.transform.Find("Text").gameObject.SetActive(true);
             noteObj.transform.Find("Icon").GetComponent<Image>().color = noteColor;
             noteObj.transform.Find("Icon").gameObject.SetActive(true);
             noteObj.SetActive(false);
 
-            dateObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = date;
+            dateObj.transform.Find("Text").GetComponent<TMPro.TextMeshProUGUI>().text = note?.DateAddedText ?? "";
             dateObj.transform.Find("Text").gameObject.SetActive(true);
             dateObj.transform.Find("Icon").GetComponent<Image>().color = dateColor;
             dateObj.transform.Find("Icon").gameObject.SetActive(true);
             dateObj.SetActive(false);
+            MelonLogger.Msg("test6");
         }
 
         public static void updateNameplates() {
             foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0) {
-                string userID = player.prop_String_0;
-                if (notes.ContainsKey(userID)) {
-                    updateNameplate(player);
-                }
+                UserNote note = notes.Where(n => n.UserId == player.prop_String_0).FirstOrDefault();
+                if (note != null) updateNameplate(player);
             }
-        }
-
-        public static string getNote(string userID) {
-            if (notes.ContainsKey(userID))
-                return notes[userID];
-            return "";
-        }
-
-        public static string getDate(string userID) {
-            if (addDate.ContainsKey(userID)) {
-                DateTime date;
-                if (DateTime.TryParseExact(addDate[userID], "dd/MM/yyyy - hh:mm tt", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
-                    return date.ToString(dateFormat);
-                else MelonLogger.LogWarning("failed to parse date: " + addDate[userID]);
-            }
-            return "";
         }
 
         public static void setDate(string userID) {
             if (!logDate) return;
-            if (!addDate.ContainsKey(userID)) {
-                addDate.Add(userID, DateTime.Now.ToString("dd/MM/yyyy - hh:mm tt"));
-                File.WriteAllText("UserData/FriendNotes_addDates.txt", new JavaScriptSerializer().Serialize(addDate));
+            var note = notes.Where(n => n.UserId == userID).FirstOrDefault();
+            if (note is null)
+            {
+                note = new UserNote() { UserId = userID };
+                notes.Add(note);
             }
+            note.DateAdded = DateTime.Now;
+            saveNotes();
         }
 
-        public static void setNote(string userID, string note) {
-            if (note == "") {
-                if (notes.ContainsKey(userID))
-                    notes.Remove(userID);
+        public static void setNote(string userID, string newNote) {
+            var note = notes.Where(n => n.UserId == userID).FirstOrDefault();
+            if (newNote == "") {
+                if (note != null)
+                    notes.Remove(note);
             } else {
-                if (notes.ContainsKey(userID))
-                    notes[userID] = note;
+                if (note != null)
+                    note.Note = newNote;
                 else
-                    notes.Add(userID, note);
+                {
+                    note = new UserNote() { UserId = userID, Note = newNote };
+                    notes.Add(note);
+                }
             }
 
-            File.WriteAllText("UserData/FriendNotes.txt", new JavaScriptSerializer().Serialize(notes));
+            saveNotes();
 
             foreach (Player player in PlayerManager.prop_PlayerManager_0.field_Private_List_1_Player_0) {
                 if (player.prop_String_0 == userID) {
@@ -266,16 +288,20 @@ namespace Friend_Notes {
             }
         }
 
-        public static void loadNotes() {
-            //load data
-            try {
-                notes = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("UserData/FriendNotes.txt"));
-            } catch (Exception) {}
+        public static void saveNotes() => notes.ToFile(notesFile);
 
-            try {
-                addDate = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText("UserData/FriendNotes_addDates.txt"));
-            } catch (Exception) { }
-
+        public static List<UserNote> loadNotes() {
+            if (notesFile.Exists) {
+                try {
+                    notes = UserNotes.FromFile(notesFile);
+                    return notes;
+                } catch (Exception ex) {
+                    MelonLogger.Error($"Failed to load notes from {notesFile.FullName.Quote()}:\n\t{ex.Message}");
+                    File.Move(notesFile.FullName, notesFile.FullName + ".corrupt");
+                } 
+            }
+            notes = new List<UserNote>();
+            return notes;
         }
 
     }
