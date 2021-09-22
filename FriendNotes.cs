@@ -1,4 +1,4 @@
-﻿using Harmony;
+using Harmony;
 using MelonLoader;
 using System;
 using System.Collections;
@@ -13,7 +13,7 @@ using VRC;
 using VRC.Core;
 using VRChatUtilityKit.Utilities;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "1.1.0", "MarkViews, Bluscream")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.0", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonOptionalDependencies("UIExpansionKit", "VRChatUtilityKit")]
 
