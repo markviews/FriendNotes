@@ -50,10 +50,10 @@ namespace Friend_Notes
         [JsonIgnore]
         public string DateAddedText { get { return HasDate ? "Added: " + DateAdded?.ToString(FriendNotes.dateFormat) : string.Empty; } }
         [JsonProperty("DateAdded", NullValueHandling = NullValueHandling.Ignore)]
-        public DateTimeOffset? DateAdded { get; set; }
+        public DateTime? DateAdded { get; set; }
 
         [JsonProperty("DateRequested", NullValueHandling = NullValueHandling.Ignore)]
-        public DateTimeOffset? DateRequested { get; set; }
+        public DateTime? DateRequested { get; set; }
 
         [JsonProperty("DisplayNames", NullValueHandling = NullValueHandling.Ignore)]
         public List<DisplayName> DisplayNames { get; set; }
@@ -80,7 +80,7 @@ namespace Friend_Notes
         public string Name { get; set; }
 
         [JsonProperty("Date", NullValueHandling = NullValueHandling.Ignore)]
-        public DateTimeOffset? Date { get; set; }
+        public DateTime? Date { get; set; }
 
         public DisplayName(string name, DateTime date)
         {
