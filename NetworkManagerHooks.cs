@@ -3,17 +3,22 @@ using System;
 using VRC;
 using VRC.Core;
 
-namespace Friend_Notes {
-    public static class NetworkManagerHooks {
+namespace Friend_Notes
+{
+    public static class NetworkManagerHooks
+    {
         private static bool IsInitialized;
         private static bool SeenFire;
         private static bool AFiredFirst;
 
         public static event Action<Player> OnJoin;
+
         public static event Action<Player> OnLeave;
 
-        public static void EventHandlerA(Player player) {
-            if (!SeenFire) {
+        public static void EventHandlerA(Player player)
+        {
+            if (!SeenFire)
+            {
                 AFiredFirst = true;
                 SeenFire = true;
 
@@ -23,8 +28,10 @@ namespace Friend_Notes {
             (AFiredFirst ? OnJoin : OnLeave)?.Invoke(player);
         }
 
-        public static void EventHandlerB(Player player) {
-            if (!SeenFire) {
+        public static void EventHandlerB(Player player)
+        {
+            if (!SeenFire)
+            {
                 AFiredFirst = false;
                 SeenFire = true;
 
@@ -34,7 +41,8 @@ namespace Friend_Notes {
             (AFiredFirst ? OnLeave : OnJoin)?.Invoke(player);
         }
 
-        public static void Initialize() {
+        public static void Initialize()
+        {
             if (IsInitialized) return;
             if (ReferenceEquals(NetworkManager.field_Internal_Static_NetworkManager_0, null)) return;
 
@@ -47,7 +55,8 @@ namespace Friend_Notes {
             IsInitialized = true;
         }
 
-        private static void AddDelegate(VRCEventDelegate<Player> field, Action<Player> eventHandlerA) {
+        private static void AddDelegate(VRCEventDelegate<Player> field, Action<Player> eventHandlerA)
+        {
             field.field_Private_HashSet_1_UnityAction_1_T_0.Add(eventHandlerA);
         }
     }
