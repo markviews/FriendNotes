@@ -63,7 +63,7 @@ namespace Friend_Notes
         public UserNote Update(VRC.Core.APIUser user) => Update(user.displayName);
         public UserNote Update(string displayname = null)
         {
-            if (displayname != null)
+            if (displayname != null && FriendNotes.logName)
             {
                 if (DisplayNames is null) DisplayNames = new List<DisplayName>();
                 var names = DisplayNames.Where(f => f.Name == displayname);

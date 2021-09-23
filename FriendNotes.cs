@@ -28,22 +28,22 @@ namespace Friend_Notes {
 
         public static MelonPreferences_Category cat;
         public static bool showNotesOnNameplates;        // = cat.GetEntry<bool>("showNotesOnNameplates").Value;
-        public static bool showNotesInMenu;                  // = cat.GetEntry<bool>("showNotesInMenu").Value;
         public static bool logDate;                                  // = cat.GetEntry<bool>("logDate").Value;
         public static bool showDateOnNameplates;         // = cat.GetEntry<bool>("showDateOnNameplates").Value;
+        public static bool logName;                                   // = cat.GetEntry<bool>("logName").Value;
         public static Color noteColor;                             // = cat.GetEntry<Color>("noteColor").Value;
         public static Color dateColor;                             // = cat.GetEntry<Color>("dateColor").Value;
         public static string dateFormat;                         // = cat.GetEntry<string>("dateFormat").Value;
 
         public static Dictionary<string, UserNote> notes;
-        public static Text textbox;
+        public static Text bio;
 
         public override void OnApplicationStart() {
             cat = MelonPreferences.CreateCategory(ModInfo.Name, ModInfo.FullName);
-            cat.CreateEntry("showNotesOnNameplates", true, "Show notes on nameplates?");
-            cat.CreateEntry("showNotesInMenu", true, "Show notes in menu?");
-            cat.CreateEntry("logDate", true, "Log date you add friends?");
-            cat.CreateEntry("showDateOnNameplates", true, "Show date on nameplates?");
+            cat.CreateEntry("showNotesOnNameplates", true, "Show notes on nameplates");
+            cat.CreateEntry("showDateOnNameplates", true, "Show date on nameplates");
+            cat.CreateEntry("logDate", true, "Log date you add friends");
+            cat.CreateEntry("logName", true, "Log friend display names");
             cat.CreateEntry("noteColor", "e6e657");
             cat.CreateEntry("dateColor", "858585");
             cat.CreateEntry("dateFormat", "M/d/yy - hh:mm tt");
@@ -62,8 +62,8 @@ namespace Friend_Notes {
 
         public override void OnPreferencesSaved() {
             showNotesOnNameplates = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "showNotesOnNameplates");
-            showNotesInMenu = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "showNotesInMenu");
             logDate = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "logDate");
+            logName = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "logName");
             showDateOnNameplates = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "showDateOnNameplates");
             dateFormat = MelonPreferences.GetEntryValue<string>(cat.Identifier, "dateFormat");
 
@@ -82,37 +82,13 @@ namespace Friend_Notes {
         public IEnumerator UiManagerInitializer() {
             while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
 
-            Transform parent = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel").transform;
-            GameObject textObj = GameObject.Instantiate(parent.Find("NameText").gameObject, parent);
-            textObj.transform.localPosition = new Vector3(-159, 13, -10);
-            textbox = textObj.GetComponent<Text>();
-            textbox.fontSize = 30;
-            textbox.text = "";
-
-            Text bio = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel/UserBio/Bio Scroll View/Viewport/Content/BioText").GetComponent<Text>();
+            bio = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel/UserBio/Bio Scroll View/Viewport/Content/BioText").GetComponent<Text>();
             GameObject userInfo = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo");
 
             userInfo.AddComponent<EnableDisableListener>().OnEnabled += () => {
                 MelonCoroutines.Start(delayRun(() => {
-                    if (!notes.ContainsKey(VRCUtils.ActiveUserInUserInfoMenu.id)) return;
-
-                    List<DisplayName> names = notes[VRCUtils.ActiveUserInUserInfoMenu.id].DisplayNames;
-                    if (names == null) return;
-
-                    foreach(DisplayName dn in names) {
-                        if (VRCUtils.ActiveUserInUserInfoMenu.displayName != dn.Name) {
-                            bio.text += "\n" + dn.Name + " " + dn.Date?.ToString(dateFormat);
-                        }
-                    }
-
-                    if (!showNotesInMenu) return;
-
                     updateText();
                 }, 0.5f));
-            };
-
-            userInfo.AddComponent<EnableDisableListener>().OnDisabled += () => {
-                textbox.text = "";
             };
 
             Harmony.Patch(typeof(APIUser).GetMethod("LocalAddFriend"), null, new HarmonyMethod(typeof(FriendNotes).GetMethod(nameof(OnFriend), BindingFlags.NonPublic | BindingFlags.Static)));
@@ -131,8 +107,65 @@ namespace Friend_Notes {
         }
 
         public void updateText() {
-            if (notes.ContainsKey(VRCUtils.ActiveUserInUserInfoMenu.id))
-                textbox.text = notes[VRCUtils.ActiveUserInUserInfoMenu.id].FullText;
+            var user = VRCUtils.ActiveUserInUserInfoMenu;
+
+            if (notes.ContainsKey(user.id)) {
+                bio.text = user.bio;
+
+                UserNote note = notes[user.id];
+
+                bool addedbreak = false;
+
+                if (note.HasNote) {
+                    bio.text += "\n";
+                    addedbreak = true;
+                    bio.text += "\nNote: " + note.Note;
+                }
+
+                if (note.HasDate) {
+                    if (!addedbreak) {
+                        bio.text += "\n";
+                        addedbreak = true;
+                    }
+                    bio.text += "\n" + note.DateAddedText;
+                }
+
+                if (note.DisplayNames != null)
+                    foreach (DisplayName dn in note.DisplayNames) {
+                        if (user.displayName != dn.Name) {
+                            if (!addedbreak) {
+                                bio.text += "\n";
+                                addedbreak = true;
+                            }
+                            bio.text += "\nPrevious name: " + dn.Name + " " + dn.Date?.ToString(dateFormat);
+                        }
+                    }
+            }
+
+            if (user.isFriend) {
+
+                if (!notes.ContainsKey(user.id)) {
+                    notes.AddOrUpdate(user);
+                    saveNotes();
+                } else {
+                    UserNote note = notes[user.id];
+                    bool newName = true;
+
+                    foreach(DisplayName dn in note.DisplayNames) {
+                        if (user.displayName == dn.Name) {
+                            newName = false;
+                            break;
+                        }
+                    }
+
+                    if (newName) {
+                        notes.AddOrUpdate(user);
+                        saveNotes();
+                    }
+
+                }
+
+            }
         }
 
         private IEnumerator createButton() {
@@ -146,7 +179,7 @@ namespace Friend_Notes {
                     notes.AddOrUpdate(user);
                     setNote(userID, newNote);
                     updateNameplates();
-                    if (showNotesInMenu) updateText();
+                    updateText();
                 });
 
             }));
