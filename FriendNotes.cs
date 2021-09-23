@@ -35,6 +35,7 @@ namespace Friend_Notes {
         public static Color noteColor;                             // = cat.GetEntry<Color>("noteColor").Value;
         public static Color dateColor;                             // = cat.GetEntry<Color>("dateColor").Value;
         public static string dateFormat;                         // = cat.GetEntry<string>("dateFormat").Value;
+        public static bool notesAtBioTopNotBottom;        // = cat.GetEntry<bool>("notesAtBioTopNotBottom").Value;
 
         public static Dictionary<string, UserNote> notes;
         public static Text bio;
@@ -46,6 +47,7 @@ namespace Friend_Notes {
             cat.CreateEntry("showDateOnNameplates", true, "Show date on nameplates");
             cat.CreateEntry("logDate", true, "Log date you add friends");
             cat.CreateEntry("logName", true, "Log friend display names");
+            cat.CreateEntry("notesAtBioTopNotBottom", false, "Show notes at the start of bios instead of the end");
             cat.CreateEntry("noteColor", "e6e657");
             cat.CreateEntry("dateColor", "858585");
             cat.CreateEntry("dateFormat", "M/d/yy - hh:mm tt");
@@ -66,6 +68,7 @@ namespace Friend_Notes {
             showNotesOnNameplates = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "showNotesOnNameplates");
             logDate = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "logDate");
             logName = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "logName");
+            notesAtBioTopNotBottom = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "notesAtBioTopNotBottom");
             showDateOnNameplates = MelonPreferences.GetEntryValue<bool>(cat.Identifier, "showDateOnNameplates");
             dateFormat = MelonPreferences.GetEntryValue<string>(cat.Identifier, "dateFormat");
 
@@ -120,36 +123,39 @@ namespace Friend_Notes {
             var user = VRCUtils.ActiveUserInUserInfoMenu;
 
             if (notes.ContainsKey(user.id)) {
-                if (user.bio != null)
+                bool needsBreak = false;
+                // `notesAtBioTopNotBottom = false` when the bio should be first and notes last.
+                if (user.bio != null && !notesAtBioTopNotBottom) {
                     bio.text = user.bio;
+                    needsBreak = true;
+                } else bio.text = "";
 
                 UserNote note = notes[user.id];
 
-                bool addedbreak = false;
-
                 if (note.HasNote) {
-                    bio.text += "\n";
-                    addedbreak = true;
-                    bio.text += "\nNote: " + note.Note;
+                    if (needsBreak) bio.text += "\n\n";
+                    needsBreak = true;
+                    bio.text += "Note: " + note.Note;
                 }
 
                 if (note.HasDate) {
-                    if (!addedbreak) {
-                        bio.text += "\n";
-                        addedbreak = true;
-                    }
-                    bio.text += "\n" + note.DateAddedText;
+                    if (needsBreak) bio.text += "\n\n";
+                    needsBreak = true;
+                    bio.text += note.DateAddedText;
                 }
 
                 if (note.DisplayNames != null)
                     foreach (DisplayName dn in note.DisplayNames) {
                         if (user.displayName != dn.Name) {
-                            if (!addedbreak) {
-                                bio.text += "\n";
-                                addedbreak = true;
-                            }
-                            bio.text += "\nPrevious name: " + dn.Name + " " + dn.Date?.ToString(dateFormat);
+                            if (needsBreak)bio.text += "\n\n";
+                            needsBreak = true;
+                            bio.text += "Previous name: " + dn.Name + " " + dn.Date?.ToString(dateFormat);
                         }
+                }
+
+                if (user.bio != null && notesAtBioTopNotBottom) {
+                    if (needsBreak) bio.text += "\n\n";
+                    bio.text += user.bio;
                 }
             }
 
