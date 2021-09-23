@@ -3,6 +3,7 @@ using MelonLoader;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using UIExpansionKit.API;
@@ -37,6 +38,7 @@ namespace Friend_Notes {
 
         public static Dictionary<string, UserNote> notes;
         public static Text bio;
+        public static GameObject socialMenu;
 
         public override void OnApplicationStart() {
             cat = MelonPreferences.CreateCategory(ModInfo.Name, ModInfo.FullName);
@@ -82,13 +84,14 @@ namespace Friend_Notes {
         public IEnumerator UiManagerInitializer() {
             while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
 
+            socialMenu = GameObject.Find("UserInterface/MenuContent/Screens/Social");
             bio = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel/UserBio/Bio Scroll View/Viewport/Content/BioText").GetComponent<Text>();
             GameObject userInfo = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo");
 
             userInfo.AddComponent<EnableDisableListener>().OnEnabled += () => {
-                MelonCoroutines.Start(delayRun(() => {
+                MelonCoroutines.Start(waitForSocialMenu(() => {
                     updateText();
-                }, 0.5f));
+                }));
             };
 
             Harmony.Patch(typeof(APIUser).GetMethod("LocalAddFriend"), null, new HarmonyMethod(typeof(FriendNotes).GetMethod(nameof(OnFriend), BindingFlags.NonPublic | BindingFlags.Static)));
@@ -101,6 +104,13 @@ namespace Friend_Notes {
             saveNotes();
         }
 
+        public IEnumerator waitForSocialMenu(Action action) {
+            while (socialMenu.active == true)
+                yield return null;
+            action.Invoke();
+        }
+
+
         public IEnumerator delayRun(Action action, float wait) {
             yield return new WaitForSeconds(wait);
             action.Invoke();
@@ -110,7 +120,8 @@ namespace Friend_Notes {
             var user = VRCUtils.ActiveUserInUserInfoMenu;
 
             if (notes.ContainsKey(user.id)) {
-                bio.text = user.bio;
+                if (user.bio != null)
+                    bio.text = user.bio;
 
                 UserNote note = notes[user.id];
 
@@ -139,11 +150,10 @@ namespace Friend_Notes {
                             }
                             bio.text += "\nPrevious name: " + dn.Name + " " + dn.Date?.ToString(dateFormat);
                         }
-                    }
+                }
             }
 
-            if (user.isFriend) {
-
+            if (logName && user.isFriend) {
                 if (!notes.ContainsKey(user.id)) {
                     notes.AddOrUpdate(user);
                     saveNotes();
@@ -151,7 +161,8 @@ namespace Friend_Notes {
                     UserNote note = notes[user.id];
                     bool newName = true;
 
-                    foreach(DisplayName dn in note.DisplayNames) {
+                    if (note.DisplayNames != null)
+                    foreach (DisplayName dn in note.DisplayNames) {
                         if (user.displayName == dn.Name) {
                             newName = false;
                             break;
