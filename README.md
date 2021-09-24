@@ -1,7 +1,7 @@
 # FriendNotes
 
-Adds notes in social menu and below nameplate.
-Option to log date and time when you friend people!
+Adds notes in social menu and below nameplates<br>
+Can also log date you add friends and past display names
 
 ## Notes
 
@@ -15,6 +15,7 @@ Option to log date and time when you friend people!
 * knah for UIExpansion Kit and NetworkManagerHooks class
 * loukylor for AddFriend patch
 * Bluscream for [#3](https://github.com/markviews/FriendNotes/pull/3)
+* ljoonal for [#4](https://github.com/markviews/FriendNotes/pull/4)
 
 ![example nameplate](https://i.ibb.co/5858tpJ/2021-06-14-18-39-12.png)
 ![outdated example menu text](https://i.ibb.co/bL2fDjG/2021-05-22-21-22-31.png)
