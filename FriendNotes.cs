@@ -126,20 +126,20 @@ namespace Friend_Notes {
                 bool needsBreak = false;
                 // `notesAtBioTopNotBottom = false` when the bio should be first and notes last.
                 if (user.bio != null && !notesAtBioTopNotBottom) {
-                    bio.text = user.bio;
+                    bio.text = user.bio + "\n";
                     needsBreak = true;
                 } else bio.text = "";
 
                 UserNote note = notes[user.id];
 
                 if (note.HasNote) {
-                    if (needsBreak) bio.text += "\n\n";
+                    if (needsBreak) bio.text += "\n";
                     needsBreak = true;
                     bio.text += "Note: " + note.Note;
                 }
 
                 if (note.HasDate) {
-                    if (needsBreak) bio.text += "\n\n";
+                    if (needsBreak) bio.text += "\n";
                     needsBreak = true;
                     bio.text += note.DateAddedText;
                 }
@@ -147,15 +147,15 @@ namespace Friend_Notes {
                 if (note.DisplayNames != null)
                     foreach (DisplayName dn in note.DisplayNames) {
                         if (user.displayName != dn.Name) {
-                            if (needsBreak)bio.text += "\n\n";
+                            if (needsBreak) bio.text += "\n";
                             needsBreak = true;
                             bio.text += "Previous name: " + dn.Name + " " + dn.Date?.ToString(dateFormat);
                         }
-                }
+                    }
 
                 if (user.bio != null && notesAtBioTopNotBottom) {
-                    if (needsBreak) bio.text += "\n\n";
-                    bio.text += user.bio;
+                    if (needsBreak) bio.text += "\n";
+                    bio.text += "\n" + user.bio;
                 }
             }
 
@@ -168,12 +168,12 @@ namespace Friend_Notes {
                     bool newName = true;
 
                     if (note.DisplayNames != null)
-                    foreach (DisplayName dn in note.DisplayNames) {
-                        if (user.displayName == dn.Name) {
-                            newName = false;
-                            break;
+                        foreach (DisplayName dn in note.DisplayNames) {
+                            if (user.displayName == dn.Name) {
+                                newName = false;
+                                break;
+                            }
                         }
-                    }
 
                     if (newName) {
                         notes.AddOrUpdate(user);
