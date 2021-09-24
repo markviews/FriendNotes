@@ -18,4 +18,4 @@ Can also log date you add friends and past display names
 * ljoonal for [#4](https://github.com/markviews/FriendNotes/pull/4)
 
 ![example nameplate](https://i.ibb.co/5858tpJ/2021-06-14-18-39-12.png)
-![outdated example menu text](https://i.ibb.co/bL2fDjG/2021-05-22-21-22-31.png)
+![example menu text](https://i.ibb.co/XV7PFWy/Capture.png)
