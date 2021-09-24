@@ -21,9 +21,8 @@ namespace Friend_Notes
 
     public static class UserNotes
     {
-        // public static Dictionary<string, UserNote> FromJson(string json) => JsonConvert.DeserializeObject<Dictionary<string, UserNote>>(json, Friend_Notes.Converter.Settings);
-        public static Dictionary<string, UserNote> FromFile(FileInfo file) => JsonConvert.DeserializeObject<Dictionary<string, UserNote>>(file.ReadAllText(), Friend_Notes.Converter.Settings);
-        public static Dictionary<string, UserNote> FromJson(string json) => JsonConvert.DeserializeObject<Dictionary<string, UserNote>>(json, Friend_Notes.Converter.Settings);
+        public static Dictionary<string, UserNote> FromFile(FileInfo file) => FromJson(file.ReadAllText());
+        public static Dictionary<string, UserNote> FromJson(string json) => JsonConvert.DeserializeObject<Dictionary<string, UserNote>>(json, Converter.Settings);
     }
 
     public partial class UserNote

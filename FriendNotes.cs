@@ -288,7 +288,7 @@ namespace Friend_Notes
                 catch (Exception ex)
                 {
                     MelonLogger.Error($"Failed to load notes from {notesFile.FullName.Quote()}:\n\t{ex.Message}");
-                    File.Move(notesFile.FullName, notesFile.FullName + ".corrupt");
+                    notesFile.Backup(true, ".corrupt");
                 }
             }
             notes = new Dictionary<string, UserNote>();
