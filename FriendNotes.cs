@@ -14,7 +14,7 @@ using VRC;
 using VRC.Core;
 using VRChatUtilityKit.Utilities;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.0", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.1", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonAdditionalDependenciesAttribute("UIExpansionKit", "VRChatUtilityKit")]
 
