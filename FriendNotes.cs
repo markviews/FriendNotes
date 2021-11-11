@@ -12,7 +12,7 @@ using UnityEngine.UI;
 using VRC;
 using VRC.Core;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.1", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.2", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonAdditionalDependencies("UIExpansionKit")]
 
