@@ -3,7 +3,6 @@ using MelonLoader;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using UIExpansionKit.API;
@@ -12,11 +11,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using VRC;
 using VRC.Core;
-using VRChatUtilityKit.Utilities;
 
 [assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.1", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
-[assembly: MelonAdditionalDependenciesAttribute("UIExpansionKit", "VRChatUtilityKit")]
+[assembly: MelonAdditionalDependencies("UIExpansionKit")]
 
 namespace Friend_Notes {
     public class FriendNotes : MelonMod {
@@ -28,18 +26,19 @@ namespace Friend_Notes {
         public static FileInfo notesFile = new FileInfo("UserData/FriendNotes.json");
 
         public static MelonPreferences_Category cat;
-        public static bool showNotesOnNameplates;        // = cat.GetEntry<bool>("showNotesOnNameplates").Value;
-        public static bool logDate;                                  // = cat.GetEntry<bool>("logDate").Value;
+        public static bool showNotesOnNameplates;       // = cat.GetEntry<bool>("showNotesOnNameplates").Value;
+        public static bool logDate;                                   // = cat.GetEntry<bool>("logDate").Value;
         public static bool showDateOnNameplates;         // = cat.GetEntry<bool>("showDateOnNameplates").Value;
         public static bool logName;                                   // = cat.GetEntry<bool>("logName").Value;
         public static Color noteColor;                             // = cat.GetEntry<Color>("noteColor").Value;
         public static Color dateColor;                             // = cat.GetEntry<Color>("dateColor").Value;
         public static string dateFormat;                         // = cat.GetEntry<string>("dateFormat").Value;
-        public static bool notesAtBioTopNotBottom;        // = cat.GetEntry<bool>("notesAtBioTopNotBottom").Value;
+        public static bool notesAtBioTopNotBottom;     // = cat.GetEntry<bool>("notesAtBioTopNotBottom").Value;
 
         public static Dictionary<string, UserNote> notes;
         public static Text bio;
         public static GameObject socialMenu;
+        public static Image background;
 
         public override void OnApplicationStart() {
             cat = MelonPreferences.CreateCategory(ModInfo.Name, ModInfo.FullName);
@@ -56,10 +55,8 @@ namespace Friend_Notes {
 
             Importer.Import();
 
-            NetworkEvents.OnPlayerJoined += OnPlayerJoined;
-
             MelonCoroutines.Start(UiManagerInitializer());
-            ExpansionKitApi.RegisterWaitConditionBeforeDecorating(createButton());
+            createButton();
 
             OnPreferencesSaved();
         }
@@ -87,7 +84,13 @@ namespace Friend_Notes {
         public IEnumerator UiManagerInitializer() {
             while (VRCUiManager.prop_VRCUiManager_0 == null) yield return null;
 
+            MelonLogger.Msg("UiManagerInitializer");
+
+            NetworkManagerHooks.Initialize();
+            NetworkManagerHooks.OnJoin += OnPlayerJoined;
+
             socialMenu = GameObject.Find("UserInterface/MenuContent/Screens/Social");
+            background = GameObject.Find("UserInterface/MenuContent/Backdrop/Backdrop/Background").GetComponent<Image>();
             bio = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel/UserBio/Bio Scroll View/Viewport/Content/BioText").GetComponent<Text>();
             GameObject userInfo = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo");
 
@@ -108,8 +111,16 @@ namespace Friend_Notes {
         }
 
         public IEnumerator waitForSocialMenu(Action action) {
-            while (socialMenu.active == true)
-                yield return null;
+            yield return new WaitForSeconds(0.1f);
+
+            if (socialMenu.active)
+                while (socialMenu.active == true)
+                    yield return null;
+
+            if (background.color.a < 0.9)
+                while (background.color.a < 0.9)
+                    yield return null;
+
             action.Invoke();
         }
 
@@ -120,7 +131,7 @@ namespace Friend_Notes {
         }
 
         public void updateText() {
-            var user = VRCUtils.ActiveUserInUserInfoMenu;
+            APIUser user = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo").GetComponent<VRC.UI.PageUserInfo>().field_Public_APIUser_0;
 
             if (notes.ContainsKey(user.id)) {
                 bool needsBreak = false;
@@ -131,7 +142,6 @@ namespace Friend_Notes {
                 } else bio.text = "";
 
                 UserNote note = notes[user.id];
-
                 if (note.HasNote) {
                     if (needsBreak) bio.text += "\n";
                     needsBreak = true;
@@ -185,11 +195,10 @@ namespace Friend_Notes {
             }
         }
 
-        private IEnumerator createButton() {
-            while (QuickMenu.prop_QuickMenu_0 == null) yield return null;
+        private void createButton() {
 
             ExpansionKitApi.GetExpandedMenu(ExpandedMenu.UserDetailsMenu).AddSimpleButton("Edit Note", new Action(() => {
-                var user = VRCUtils.ActiveUserInUserInfoMenu;
+                APIUser user = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo").GetComponent<VRC.UI.PageUserInfo>().field_Public_APIUser_0;
                 string userID = user.id;
                 var noteBeforeEdit = notes.ContainsKey(userID) ? notes[userID].Note : "";
                 BuiltinUiUtils.ShowInputPopup(noteBeforeEdit == "" ? "Edit Note" : "Add Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
@@ -217,9 +226,8 @@ namespace Friend_Notes {
             Transform noteTransform = textContainer.Find("Note");
             Transform dateTransform = textContainer.Find("Date");
 
-            if (notes.ContainsKey(userID)) {
-                if ((notes[userID].HasNote || !showNotesOnNameplates) && (notes[userID].HasDate || !showDateOnNameplates)) return;
-            }
+            if (notes.ContainsKey(userID))
+                if ((!notes[userID].HasNote || !showNotesOnNameplates) && (!notes[userID].HasDate || !showDateOnNameplates)) return;
 
             GameObject noteObj, dateObj;
             if (noteTransform == null) {
@@ -233,6 +241,7 @@ namespace Friend_Notes {
                 RectTransform bg = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Background").GetComponent<RectTransform>();
                 RectTransform glow = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Glow").GetComponent<RectTransform>();
                 RectTransform pulse = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Pulse").GetComponent<RectTransform>();
+                
                 originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () => {
                     float height = 0;
                     if (notes.ContainsKey(userID)) {

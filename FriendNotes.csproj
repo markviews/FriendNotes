@@ -51,8 +51,7 @@
       <HintPath>$(GameRefsPath)Il2CppSystem.Core.dll</HintPath>
     </Reference>
     <Reference Include="MelonLoader">
-      <HintPath>Libs/MelonLoader.dll</HintPath>
-      <HintPath Condition="Exists('$(VRCPath)MelonLoader/MelonLoader.dll')">$(VRCPath)MelonLoader/MelonLoader.dll</HintPath>
+      <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\VRChat\MelonLoader\MelonLoader.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <SpecificVersion>False</SpecificVersion>
@@ -85,9 +84,6 @@
     <Reference Include="VRCCore-Standalone">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>$(GameRefsPath)VRCCore-Standalone.dll</HintPath>
-    </Reference>
-    <Reference Include="VRChatUtilityKit">
-      <HintPath>$(VRCModRefsPath)VRChatUtilityKit.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>
