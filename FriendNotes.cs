@@ -12,7 +12,7 @@ using UnityEngine.UI;
 using VRC;
 using VRC.Core;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.2", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.3", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonAdditionalDependencies("UIExpansionKit")]
 
@@ -37,8 +37,7 @@ namespace Friend_Notes {
 
         public static Dictionary<string, UserNote> notes;
         public static Text bio;
-        public static GameObject socialMenu;
-        public static Image background;
+        public static VRC.UI.PageUserInfo userInfoPage;
 
         public override void OnApplicationStart() {
             cat = MelonPreferences.CreateCategory(ModInfo.Name, ModInfo.FullName);
@@ -89,9 +88,8 @@ namespace Friend_Notes {
             NetworkManagerHooks.Initialize();
             NetworkManagerHooks.OnJoin += OnPlayerJoined;
 
-            socialMenu = GameObject.Find("UserInterface/MenuContent/Screens/Social");
-            background = GameObject.Find("UserInterface/MenuContent/Backdrop/Backdrop/Background").GetComponent<Image>();
             bio = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo/User Panel/UserBio/Bio Scroll View/Viewport/Content/BioText").GetComponent<Text>();
+            userInfoPage = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo").GetComponent<VRC.UI.PageUserInfo>();
             GameObject userInfo = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo");
 
             userInfo.AddComponent<EnableDisableListener>().OnEnabled += () => {
@@ -111,16 +109,13 @@ namespace Friend_Notes {
         }
 
         public IEnumerator waitForSocialMenu(Action action) {
-            yield return new WaitForSeconds(0.1f);
+            while (userInfoPage == null)
+                yield return null;
 
-            if (socialMenu.active)
-                while (socialMenu.active == true)
-                    yield return null;
+            while (!userInfoPage.isActiveAndEnabled)
+                yield return null;
 
-            if (background.color.a < 0.9)
-                while (background.color.a < 0.9)
-                    yield return null;
-
+            yield return new WaitForSeconds(0.2f);
             action.Invoke();
         }
 
@@ -131,7 +126,7 @@ namespace Friend_Notes {
         }
 
         public void updateText() {
-            APIUser user = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo").GetComponent<VRC.UI.PageUserInfo>().field_Public_APIUser_0;
+            APIUser user = userInfoPage.field_Private_APIUser_0;
 
             if (notes.ContainsKey(user.id)) {
                 bool needsBreak = false;
@@ -198,7 +193,7 @@ namespace Friend_Notes {
         private void createButton() {
 
             ExpansionKitApi.GetExpandedMenu(ExpandedMenu.UserDetailsMenu).AddSimpleButton("Edit Note", new Action(() => {
-                APIUser user = GameObject.Find("UserInterface/MenuContent/Screens/UserInfo").GetComponent<VRC.UI.PageUserInfo>().field_Public_APIUser_0;
+                APIUser user = userInfoPage.field_Private_APIUser_0;
                 string userID = user.id;
                 var noteBeforeEdit = notes.ContainsKey(userID) ? notes[userID].Note : "";
                 BuiltinUiUtils.ShowInputPopup(noteBeforeEdit == "" ? "Edit Note" : "Add Note", noteBeforeEdit, InputField.InputType.Standard, false, "Confirm", (newNote, _, __) => {
