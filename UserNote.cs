@@ -67,7 +67,7 @@ namespace Friend_Notes
                 if (DisplayNames is null) DisplayNames = new List<DisplayName>();
                 var names = DisplayNames.Where(f => f.Name == displayname);
                 if (names.Count() < 1) DisplayNames.Add(new DisplayName(displayname, DateTime.Now));
-                else names.Last().Date = DateTime.Now;
+                else names.Last().DateFirstSeen = DateTime.Now;
             }
             return this;
         }
@@ -81,15 +81,19 @@ namespace Friend_Notes
         [JsonProperty("Date", NullValueHandling = NullValueHandling.Ignore)]
         public DateTime? Date { get; set; }
 
-        public DisplayName(string name, DateTime date)
+        [JsonProperty("DateFirstSeen", NullValueHandling = NullValueHandling.Ignore)]
+        public DateTime? DateFirstSeen { get; set; }
+
+        public DisplayName(string name, DateTime dateFirstSeen)
         {
             Name = name;
-            Date = date;
+            DateFirstSeen = dateFirstSeen;
+            
         }
 
         public override string ToString()
         {
-            return $"\"{Name}\" ({Date})";
+            return $"\"{Name}\" ({DateFirstSeen})";
         }
     }
 
