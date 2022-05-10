@@ -12,7 +12,7 @@ using UnityEngine.UI;
 using VRC;
 using VRC.Core;
 
-[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.3", "MarkViews")]
+[assembly: MelonInfo(typeof(Friend_Notes.FriendNotes), "Friend Notes", "2.0.4", "MarkViews")]
 [assembly: MelonGame("VRChat", "VRChat")]
 [assembly: MelonAdditionalDependencies("UIExpansionKit")]
 
@@ -212,7 +212,10 @@ namespace Friend_Notes {
         }
 
         public static void updateNameplate(Player player) {
+            if (player == null) { MelonLogger.Error("updateNameplate player null"); return; }
+
             string userID = player.prop_String_0;
+            if (player == null) { MelonLogger.Error("updateNameplate userID null"); return; }
 
             if (userID == PlayerManager.prop_PlayerManager_0.field_Private_Player_0.prop_String_0) return; //ignore self
 
@@ -236,22 +239,26 @@ namespace Friend_Notes {
                 RectTransform bg = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Background").GetComponent<RectTransform>();
                 RectTransform glow = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Glow").GetComponent<RectTransform>();
                 RectTransform pulse = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Main/Pulse").GetComponent<RectTransform>();
-                
+
+                Transform statusLine = player.gameObject.transform.Find("Player Nameplate/Canvas/Nameplate/Contents/Status Line/");
+
                 originalSubText.AddComponent<EnableDisableListener>().OnEnabled += () => {
-                    float height = 0;
+                    
+                    int linesAdded = 0;
                     if (notes.ContainsKey(userID)) {
                         if (showNotesOnNameplates && notes[userID].HasNote) {
                             noteObj.SetActive(true);
-                            height -= 0.3f;
+                            linesAdded++;
                         }
                         if (showDateOnNameplates && notes[userID].HasDate) {
                             dateObj.SetActive(true);
-                            height -= 0.3f;
+                            linesAdded++;
                         }
                     }
-                    bg.anchorMin = new Vector2(0, height);
-                    glow.anchorMin = new Vector2(0, height);
-                    pulse.anchorMin = new Vector2(0, height);
+                    statusLine.transform.localPosition = new Vector3(0.0066f, -58 - (linesAdded * 18), 0f);
+                    bg.anchorMin = new Vector2(0, linesAdded * -0.3f);
+                    glow.anchorMin = new Vector2(0, linesAdded * -0.3f);
+                    pulse.anchorMin = new Vector2(0, linesAdded * -0.3f);
                 };
 
                 originalSubText.AddComponent<EnableDisableListener>().OnDisabled += () => {
