@@ -311,7 +311,7 @@ namespace Friend_Notes
 
         public static void AddSafe(this IDictionary<string, string> dictionary, string key, string value)
         {
-            if (!dictionary.ContainsKey(key))
+            if (key != null && !dictionary.ContainsKey(key))
                 dictionary.Add(key, value);
         }
 
