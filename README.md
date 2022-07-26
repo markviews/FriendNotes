@@ -5,6 +5,7 @@ Can also log date you add friends and past display names
 
 ## Notes
 
+* [Here's](https://github.com/markviews/FriendNotes-to-VRCX) a tool to add your notes to VRCX
 * UIExpansion Kit and VRChatUtilityKit required
 * You can change the date format, check out [this page](https://www.c-sharpcorner.com/blogs/date-and-time-format-in-c-sharp-programming1) for syntax
 * You can add notes to anyone, not just friends
