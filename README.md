@@ -1,5 +1,7 @@
 # FriendNotes
 
+Porting to ChilloutVR, should be posted within a week<br>
+<br>
 Adds notes in social menu and below nameplates<br>
 Can also log date you add friends and past display names
 
