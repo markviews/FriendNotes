@@ -1,8 +1,5 @@
 # FriendNotes
 
-Check out the ChilloutVR version [here](https://github.com/markviews/FriendNotes-to-VRCX)
-
-
 Adds notes in social menu and below nameplates<br>
 Can also log date you add friends and past display names
 
